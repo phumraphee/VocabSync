@@ -1,0 +1,71 @@
+/* Vocab Sync — styles for the Vocab Sync field on resource edit forms.
+   Loaded only where the data type's form is used (prepareForm). Same callout
+   language as the module pages: a left rule carries the meaning, no fills
+   that shout, Omeka's own buttons and type. */
+
+.vocabsync-tools {
+  margin: .35em 0 0;
+  font-size: .875em;
+  line-height: 1.4;
+}
+
+.vocabsync-tools a.vocabsync-manage {
+  color: #767676;
+}
+
+.vocabsync-tools a.vocabsync-manage:hover,
+.vocabsync-tools a.vocabsync-manage:focus {
+  color: inherit;
+}
+
+/* "+ Add …" row inside the Chosen dropdown, under "No term matches" */
+.chosen-container .chosen-results li.vs-add-term {
+  display: list-item;
+  cursor: pointer;
+  color: inherit;
+  background: none;
+  border-top: 1px solid #e0e0e0;
+  font-weight: bold;
+}
+
+.chosen-container .chosen-results li.vs-add-term:hover,
+.chosen-container .chosen-results li.vs-add-term:focus {
+  background: #eef1f4;
+}
+
+/* Confirmation box under the dropdown */
+.vocabsync-panel {
+  margin: .5em 0 0;
+  padding: .75em 1em;
+  border-left: 3px solid #4a5a6a;
+  background: #f7f7f7;
+  line-height: 1.5;
+}
+
+.vocabsync-panel[data-kind="confirm-add"],
+.vocabsync-panel[data-kind="confirm-reactivate"] {
+  border-color: #d9822b;
+}
+
+.vocabsync-panel[data-kind="done"]  { border-color: #2e7d32; }
+.vocabsync-panel[data-kind="error"] { border-color: #c0392b; }
+.vocabsync-panel[data-kind="wait"]  { border-color: #9e9e9e; color: #767676; }
+
+.vocabsync-panel-text {
+  margin: 0 0 .6em;
+  overflow-wrap: anywhere;
+}
+
+.vocabsync-panel[data-kind="wait"] .vocabsync-panel-text {
+  margin: 0;
+}
+
+.vocabsync-panel-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5em;
+}
+
+.vocabsync-panel-buttons button {
+  margin: 0;
+}

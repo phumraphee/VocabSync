@@ -1,0 +1,107 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [
+        ['label' => $vocab['label'], 'url' => $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']])],
+        ['label' => 'Revert to Custom Vocab'],
+    ],
+]); ?>
+
+<?php echo $this->pageTitle('Revert: ' . $vocab['label']); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Vocabulary</span>
+    <strong><?php echo $this->escapeHtml($vocab['label']); ?></strong>
+    <code class="vs-datatype">vocabsync:<?php echo (int) $vocab['id']; ?></code>
+</div>
+
+<?php if ($hasLog): ?>
+
+<p class="vs-intro">
+    <strong><?php echo $this->escapeHtml($vocab['label']); ?></strong> has import
+    logs, so it can be reverted exactly: every value goes back to the text it held
+    before the import, character for character.
+</p>
+
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>Imported</th>
+            <th>From Custom Vocab</th>
+            <th>Values logged</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($logs as $l): ?>
+        <tr>
+            <td><?php echo $this->escapeHtml($l['created']); ?></td>
+            <td>id <?php echo (int) $l['old_vocab_id']; ?></td>
+            <td><?php echo (int) $l['logged_count']; ?></td>
+            <td>
+                <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'revert-import', 'id' => $l['id']]); ?>">
+                    Revert this batch
+                </a>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+
+<div class="vs-note">
+    Each row is one import or recheck batch. Reverting one leaves the others
+    alone, so you can undo a single mistake without unwinding everything.
+</div>
+
+<?php else: ?>
+
+<p class="vs-intro">
+    <strong><?php echo $this->escapeHtml($vocab['label']); ?></strong> has no
+    import log — it was either imported before logging existed, or created by
+    hand rather than imported.
+</p>
+
+<div class="vs-warning">
+    <span class="vs-callout-title">This revert is approximate</span>
+    Without a log there is no record of the original text, so each value is
+    written back using the term's <strong>current</strong> label. If you have
+    renamed any term since the import, those values return with the new wording,
+    not the original. Terms added by hand after the import are treated the same
+    way. Everything else — which resource holds which value — is preserved exactly.
+</div>
+
+<?php if ($oldVocabs): ?>
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <div class="field">
+        <label for="old_vocab_id">Custom Vocab to write back to</label>
+        <div class="inputs">
+            <select id="old_vocab_id" name="old_vocab_id" required>
+                <option value=""></option>
+                <?php foreach ($oldVocabs as $v): ?>
+                <option value="<?php echo (int) $v['id']; ?>">
+                    <?php echo $this->escapeHtml($v['label']); ?> (id <?php echo (int) $v['id']; ?>)
+                </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
+    <div class="field">
+        <label for="confirm_text">Type REVERT to confirm</label>
+        <div class="inputs">
+            <input type="text" id="confirm_text" name="confirm_text" required
+                   placeholder="REVERT">
+        </div>
+    </div>
+    <button type="submit">Revert values</button>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']]); ?>">Cancel</a>
+</form>
+<?php else: ?>
+<div class="vs-empty">
+    No Custom Vocabs in Terms mode were found, so there is nowhere to write these
+    values back to.
+</div>
+<?php endif; ?>
+
+<?php endif; ?>

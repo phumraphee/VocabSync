@@ -1,0 +1,158 @@
+<?php
+/**
+ * A history to be read as a story, grouped by day, not a table of one row per event.
+ * · A rename is shown as before and after, with only the difference marked.
+ */
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+
+$e = function ($v) { return $this->escapeHtml((string) $v); };
+
+$actionLabels = [
+    'vocab.create' => 'Vocabulary created',
+    'vocab.import' => 'Imported',
+    'vocab.delete' => 'Vocabulary deleted',
+    'vocab.owner_set' => 'Added-by recorded',
+    'vocab.term_order' => 'Dropdown order changed',
+    'term.add' => 'Term added',
+    'term.rename' => 'Term renamed',
+    'term.retire' => 'Term retired',
+    'term.reactivate' => 'Term reactivated',
+    'term.delete' => 'Term deleted',
+    'term.move' => 'Term moved',
+    'value.recheck' => 'Values rechecked',
+    'value.assign' => 'Value assigned',
+    'value.add_assign' => 'Term added and assigned',
+    'value.revert' => 'Values reverted',
+    'template.switch' => 'Template switched',
+    'freeze' => 'Frozen',
+    'undo' => 'Change cancelled',
+];
+
+$base = $this->url('admin/vocab-sync', ['action' => 'activity']);
+$day = null;
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => 'Activity']],
+]); ?>
+
+<?php echo $this->pageTitle('Activity'); ?>
+
+<p class="vs-intro">
+    Everything that has changed in Vocab Sync, newest first — who did it and
+    when. Nothing here is ever deleted or rewritten: cancelling a change adds its
+    own entry pointing back at the one it cancelled.
+</p>
+
+<form method="get" class="vs-toolbar">
+    <div class="vs-toolbar-field">
+        <label for="vocab">Vocabulary</label>
+        <select id="vocab" name="vocab" onchange="this.form.submit()">
+            <option value="0">All</option>
+            <?php foreach ($vocabs as $v): ?>
+            <option value="<?php echo (int) $v['id']; ?>"<?php echo ((int) $vocabId === (int) $v['id']) ? ' selected' : ''; ?>>
+                <?php echo $e($v['label']); ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="vs-toolbar-actions">
+        <noscript><button type="submit">Apply</button></noscript>
+        <span class="vs-muted"><?php echo number_format($total); ?> entries</span>
+    </div>
+</form>
+
+<?php if (!$events): ?>
+<div class="vs-empty">
+    Nothing recorded yet. Entries appear here as soon as anything changes.
+</div>
+<?php else: ?>
+
+<?php foreach ($events as $ev): ?>
+<?php
+$stamp = strtotime($ev['created']);
+$thisDay = date('Y-m-d', $stamp);
+if ($thisDay !== $day):
+    if ($day !== null) { echo '</div>'; }
+    $day = $thisDay;
+?>
+<h3 class="vs-day"><?php echo $e(date('l j F Y', $stamp)); ?></h3>
+<div class="vs-daylist">
+<?php endif; ?>
+
+<?php
+$detail = [];
+if (!empty($ev['detail'])) {
+    $decoded = json_decode($ev['detail'], true);
+    if (is_array($decoded)) {
+        $detail = $decoded;
+    }
+}
+
+// // Before and after: from the event itself first; when it has none (older events
+// // recorded before the detail was kept), from the snapshot table joined in.
+$before = array_key_exists('before', $detail) ? $detail['before'] : ($ev['log_before'] ?? null);
+$after = array_key_exists('after', $detail) ? $detail['after'] : ($ev['log_after'] ?? null);
+$hasPair = ($before !== null || $after !== null);
+$undone = !empty($ev['undone_by_event_id']);
+?>
+<div class="vs-ev<?php echo $undone ? ' vs-ev-undone' : ''; ?>" id="vs-ev-<?php echo (int) $ev['id']; ?>">
+    <div class="vs-ev-head">
+        <span class="vs-ev-time"><?php echo $e(date('H:i', $stamp)); ?></span>
+        <span class="vs-ev-who">
+            <?php echo $ev['user_name'] ? $e($ev['user_name']) : '<span class="vs-muted">unknown</span>'; ?>
+        </span>
+        <span class="vs-ev-what"><?php echo $e($actionLabels[$ev['action']] ?? $ev['action']); ?></span>
+        <?php if ($ev['vocab_label']): ?>
+        <a class="vs-ev-vocab" href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $ev['vocab_id']]); ?>">
+            <?php echo $e($ev['vocab_label']); ?>
+        </a>
+        <?php elseif ($ev['vocab_id']): ?>
+        <span class="vs-ev-vocab vs-muted">deleted vocabulary #<?php echo (int) $ev['vocab_id']; ?></span>
+        <?php endif; ?>
+        <span class="vs-ev-id">#<?php echo (int) $ev['id']; ?></span>
+    </div>
+
+    <?php if ($hasPair && $before !== null && $after !== null): ?>
+        <?php echo \VocabSync\Diff::pair($before, $after, $e); ?>
+    <?php elseif ($hasPair && $after !== null): ?>
+        <div class="vs-single vs-single-add"><?php echo $e($after); ?></div>
+    <?php elseif ($hasPair): ?>
+        <div class="vs-single vs-single-remove"><?php echo $e($before); ?></div>
+    <?php else: ?>
+        <p class="vs-ev-summary"><?php echo $e($ev['summary']); ?></p>
+    <?php endif; ?>
+
+    <?php if (!empty($ev['undo_of_event_id']) || $undone): ?>
+    <div class="vs-ev-foot">
+        <?php if (!empty($ev['undo_of_event_id'])): ?>
+        <span>cancelled <a href="#vs-ev-<?php echo (int) $ev['undo_of_event_id']; ?>">#<?php echo (int) $ev['undo_of_event_id']; ?></a></span>
+        <?php endif; ?>
+        <?php if ($undone): ?>
+        <span>cancelled by <a href="#vs-ev-<?php echo (int) $ev['undone_by_event_id']; ?>">#<?php echo (int) $ev['undone_by_event_id']; ?></a></span>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+</div>
+<?php endforeach; ?>
+<?php if ($day !== null) { echo '</div>'; } ?>
+
+<?php if ($totalPages > 1): ?>
+<div class="vs-pagination">
+    <?php if ($page > 1): ?>
+    <a class="button" href="<?php echo $base; ?>?vocab=<?php echo (int) $vocabId; ?>&amp;page=<?php echo $page - 1; ?>">Newer</a>
+    <?php endif; ?>
+    <span class="vs-muted">Page <?php echo (int) $page; ?> of <?php echo (int) $totalPages; ?></span>
+    <?php if ($page < $totalPages): ?>
+    <a class="button" href="<?php echo $base; ?>?vocab=<?php echo (int) $vocabId; ?>&amp;page=<?php echo $page + 1; ?>">Older</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<?php endif; ?>
+
+<div class="vs-note">
+    The buttons to cancel a change live where the work happens — term changes on
+    the vocabulary page, value batches in Import history, template changes on the
+    Status page. This log is the record of what happened, not a second place to act.
+</div>

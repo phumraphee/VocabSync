@@ -1,0 +1,79 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [
+        ['label' => $term['vocab_label'], 'url' => $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocabId])],
+        ['label' => 'Delete term'],
+    ],
+]); ?>
+
+<?php echo $this->pageTitle('Delete this term?'); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Vocabulary</span>
+    <strong><?php echo $this->escapeHtml($term['vocab_label']); ?></strong>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Term ID</span>
+    <strong><?php echo (int) $term['id']; ?></strong>
+    <span class="vs-context-sep">·</span>
+    <?php if ($term['is_active']): ?>
+        <span class="vs-pill vs-pill-active">Active</span>
+    <?php else: ?>
+        <span class="vs-pill vs-pill-retired">Retired</span>
+    <?php endif; ?>
+</div>
+
+<div class="vs-single vs-single-remove"><?php echo $this->escapeHtml($term['label']); ?></div>
+
+<?php if ($blocked === 'active'): ?>
+
+<div class="vs-danger">
+    <span class="vs-callout-title">This term is still active</span>
+    Only a retired term can be deleted. Retire it first, so anyone using it has a
+    chance to notice before it goes.
+</div>
+
+<?php elseif ($blocked === 'in_use'): ?>
+
+<div class="vs-danger">
+    <span class="vs-callout-title">
+        <?php echo (int) $inUse; ?>
+        <?php echo ((int) $inUse === 1) ? 'value uses' : 'values use'; ?>
+        this term
+    </span>
+    Deleting it would leave them holding an ID with no wording behind it. Move
+    those values to another term first, from the vocabulary's own page.
+</div>
+
+<?php else: ?>
+
+<p class="vs-intro">
+    Nothing uses this term and it is already retired, so deleting it affects no
+    stored data.
+</p>
+
+<div class="vs-warning">
+    <span class="vs-callout-title">The ID does not come back</span>
+    You can cancel this deletion afterwards from the term history, which brings the
+    wording back as a retired term — but it will be given a new ID. Anything that
+    referred to ID <?php echo (int) $term['id']; ?> outside this system, such as an
+    exported spreadsheet, will no longer match.
+</div>
+
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <?php foreach ($listState as $k => $v): ?>
+    <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+    <?php endforeach; ?>
+    <button type="submit" class="vs-button-danger">Delete this term</button>
+    <a href="<?php echo $this->escapeHtmlAttr($backUrl); ?>">Cancel</a>
+</form>
+
+<?php endif; ?>
+
+<?php if ($blocked !== null): ?>
+<div class="vs-actions">
+    <a class="button" href="<?php echo $this->escapeHtmlAttr($backUrl); ?>">Back to terms</a>
+</div>
+<?php endif; ?>

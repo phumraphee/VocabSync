@@ -1,0 +1,60 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => 'Import history']],
+]); ?>
+
+<?php echo $this->pageTitle('Import history'); ?>
+
+<p class="vs-intro">
+    Every import and recheck batch, newest first. Each one records the exact text
+    each value held beforehand, so any batch can be cancelled on its own.
+</p>
+
+<?php if ($logs): ?>
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>Run</th>
+            <th>What</th>
+            <th>Into vocabulary</th>
+            <th>Values logged</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($logs as $l): ?>
+        <tr>
+            <td><?php echo $this->escapeHtml($l['created']); ?></td>
+            <td>
+                <?php echo $this->escapeHtml(isset($l['note']) && $l['note'] !== '' ? $l['note'] : 'Import'); ?>
+                <span class="vs-muted">from Custom Vocab id <?php echo (int) $l['old_vocab_id']; ?></span>
+            </td>
+            <td>
+                <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $l['new_vocab_id']]); ?>">
+                    <?php echo $this->escapeHtml($l['new_label']); ?>
+                </a>
+            </td>
+            <td><?php echo (int) $l['logged_count']; ?></td>
+            <td>
+                <?php if (!empty($l['reverted'])): ?>
+                <span class="vs-muted">Cancelled</span>
+                <?php else: ?>
+                <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'revert-import', 'id' => $l['id']]); ?>">
+                    Cancel this batch
+                </a>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+<?php else: ?>
+<div class="vs-empty">
+    Nothing imported yet. Batches appear here once you import a Custom Vocab or
+    recheck unmatched values.
+</div>
+<?php endif; ?>
+

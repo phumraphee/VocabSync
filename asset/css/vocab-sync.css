@@ -1,0 +1,480 @@
+/* Vocab Sync — admin styles.
+   Designed to sit inside Omeka's admin chrome: inherits Omeka's type and
+   controls, adds only what Omeka has no pattern for (status pills, callouts,
+   inline row forms). No custom fonts or palette overrides. */
+
+.vocab-sync .vs-intro {
+  max-width: 62em;
+  margin: 0 0 1.5em;
+  line-height: 1.6;
+}
+
+.vocab-sync .vs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5em;
+  margin: 0 0 1.5em;
+}
+
+/* Callouts — severity is carried by the left rule, not a fill, so these stay
+   readable against Omeka's light admin background without shouting. */
+.vocab-sync .vs-note,
+.vocab-sync .vs-warning,
+.vocab-sync .vs-danger {
+  max-width: 62em;
+  margin: 0 0 1.5em;
+  padding: .85em 1.1em;
+  border-left: 3px solid;
+  background: #f7f7f7;
+  line-height: 1.6;
+}
+.vocab-sync .vs-note    { border-color: #767676; }
+.vocab-sync .vs-warning { border-color: #d9822b; }
+.vocab-sync .vs-danger  { border-color: #c0392b; }
+
+.vocab-sync .vs-note strong,
+.vocab-sync .vs-warning strong,
+.vocab-sync .vs-danger strong { display: inline; }
+
+.vocab-sync .vs-callout-title {
+  display: block;
+  margin-bottom: .3em;
+  font-weight: 600;
+}
+
+/* Section headers with a count, so the page reads as a checklist of work. */
+.vocab-sync .vs-section {
+  margin: 2em 0 1em;
+  padding-bottom: .4em;
+  border-bottom: 1px solid #e0e0e0;
+}
+.vocab-sync .vs-section h3 {
+  display: inline;
+  margin: 0;
+}
+.vocab-sync .vs-count {
+  margin-left: .5em;
+  color: #767676;
+  font-weight: 400;
+}
+
+/* Status pill — active vs retired needs to be scannable down a long list. */
+.vocab-sync .vs-pill {
+  display: inline-block;
+  padding: .15em .6em;
+  border: 1px solid;
+  border-radius: 1em;
+  font-size: .85em;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.vocab-sync .vs-pill-active  { border-color: #2e7d32; color: #2e7d32; }
+.vocab-sync .vs-pill-retired { border-color: #9e9e9e; color: #767676; }
+
+.vocab-sync .vs-inline-form {
+  display: inline-flex;
+  gap: .5em;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.vocab-sync .vs-inline-form input[type="text"] { min-width: 14em; }
+
+.vocab-sync .vs-datatype {
+  padding: .15em .45em;
+  background: #f0f0f0;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.vocab-sync .vs-empty {
+  padding: 1.5em;
+  background: #f7f7f7;
+  color: #767676;
+  text-align: center;
+}
+
+.vocab-sync .vs-muted { color: #767676; }
+
+.vocab-sync .vs-add-form {
+  margin: 1.5em 0;
+  padding: 1.25em;
+  background: #f7f7f7;
+}
+.vocab-sync .vs-add-form h3 { margin-top: 0; }
+
+/* Context bar — which vocabulary am I acting on? Pages here perform
+   irreversible or bulk operations, and the page title truncates on narrow
+   screens, so the subject is restated in a persistent strip below it. */
+.vocab-sync .vs-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5em;
+  margin: 0 0 1.5em;
+  padding: .7em 1em;
+  background: #eef1f4;
+  border-left: 3px solid #4a5a6a;
+  line-height: 1.6;
+}
+.vocab-sync .vs-context-label {
+  color: #55606b;
+  font-size: .9em;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.vocab-sync .vs-context-sep { color: #9aa5b0; }
+
+/* Two action columns per row (assign / add) need room to breathe. */
+.vocab-sync td .vs-inline-form + .vs-inline-form { margin-top: .5em; }
+
+/* Toolbar — search, filter, sort as one row on desktop, stacked on phones. */
+.vocab-sync .vs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1em;
+  margin: 0 0 1.25em;
+  padding: 1em;
+  background: #f7f7f7;
+}
+.vocab-sync .vs-toolbar-field {
+  display: flex;
+  flex-direction: column;
+  gap: .3em;
+}
+.vocab-sync .vs-toolbar-field label {
+  color: #55606b;
+  font-size: .9em;
+  font-weight: 600;
+}
+.vocab-sync .vs-toolbar-field input[type="text"] { min-width: 16em; }
+.vocab-sync .vs-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: .75em;
+}
+
+/* The row being renamed is the only one with an open field, so mark it. */
+.vocab-sync .vs-row-editing > td { background: #eef4fa; }
+
+.vocab-sync .vs-pagination {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin: 1.25em 0;
+}
+
+/* Rename dialog — renaming used to navigate, which reloaded the page at the
+   top and lost the row you were working on. */
+.vocab-sync .vs-dialog {
+  max-width: 32em;
+  padding: 1.5em;
+  border: 1px solid #c4c4c4;
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .18);
+}
+.vocab-sync .vs-dialog::backdrop { background: rgba(0, 0, 0, .35); }
+.vocab-sync .vs-dialog-title { margin: 0 0 .4em; }
+.vocab-sync .vs-dialog-sub {
+  margin: 0 0 1.2em;
+  color: #55606b;
+  line-height: 1.5;
+}
+.vocab-sync .vs-dialog-actions {
+  display: flex;
+  gap: .75em;
+  margin-top: 1.2em;
+}
+
+/* Live search: dim rather than blank, so the list never jumps or disappears
+   mid-keystroke. */
+.vocab-sync .vs-loading {
+  opacity: .45;
+  transition: opacity .12s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vocab-sync .vs-loading { transition: none; }
+}
+
+/* Links out to a resource open in a new tab, so the arrow says so and the
+   work-in-progress list is never navigated away from. */
+.vocab-sync .vs-ext {
+  font-size: .85em;
+  opacity: .65;
+}
+
+/* Thumbnails — small and fixed so rows stay a scannable height whether or not
+   a resource has an image. The empty box keeps the column aligned. */
+.vocab-sync .vs-thumb-col { width: 60px; }
+.vocab-sync .vs-thumb-col img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border: 1px solid #e0e0e0;
+}
+.vocab-sync .vs-thumb-empty {
+  display: block;
+  width: 48px;
+  height: 48px;
+  background: #f2f2f2;
+  border: 1px solid #e6e6e6;
+}
+
+/* Stacked (mobile) tables put every cell on its own row; a lone thumbnail row
+   with no label reads as a stray box, so give it the full width it needs. */
+@media (max-width: 620px) {
+  .vocab-sync .vs-thumb-col { width: auto; }
+}
+
+/* Checkbox with its explanation, and lists inside callouts. */
+.vocab-sync .vs-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: .5em;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.vocab-sync .vs-field-hint {
+  margin: .4em 0 0;
+  color: #55606b;
+  line-height: 1.5;
+}
+.vocab-sync .vs-warning ul,
+.vocab-sync .vs-note ul {
+  margin: .6em 0 .9em;
+  padding-left: 1.3em;
+  line-height: 1.7;
+}
+.vocab-sync .vs-warning form,
+.vocab-sync .vs-note form { margin-top: .6em; }
+
+/* Breadcrumb — the way back sits in the same place on every page, so it is
+   never something to hunt for. */
+.vocab-sync .vs-breadcrumb {
+  margin: 0 0 .75em;
+  color: #767676;
+  font-size: .95em;
+  line-height: 1.6;
+}
+.vocab-sync .vs-crumb-sep { margin: 0 .45em; color: #b0b0b0; }
+.vocab-sync .vs-crumb-current { color: #333; }
+
+/* Maintenance — rare and destructive work is separated from the everyday
+   buttons at the top, and each link says what it does before you click it. */
+.vocab-sync .vs-maintenance {
+  margin: 3em 0 1em;
+  padding-top: 1.25em;
+  border-top: 1px solid #e0e0e0;
+}
+.vocab-sync .vs-maintenance h3 {
+  margin: 0 0 .75em;
+  color: #55606b;
+  font-size: 1em;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.vocab-sync .vs-links { margin: 0; }
+.vocab-sync .vs-links dt { margin: .9em 0 .15em; }
+.vocab-sync .vs-links dt:first-child { margin-top: 0; }
+.vocab-sync .vs-links dd {
+  margin: 0;
+  color: #767676;
+  line-height: 1.5;
+}
+.vocab-sync .vs-link-danger a { color: #c0392b; }
+
+/* An undone entry stays in the log, just visually settled so the eye skips it. */
+.vocab-sync .vs-event-undone > td { opacity: .6; }
+
+/* Move arrows sit side by side and stay compact next to the term. */
+.vocab-sync .vs-move { white-space: nowrap; }
+.vocab-sync .vs-move .vs-inline-form { display: inline-flex; margin-right: .25em; }
+.vocab-sync .vs-move button {
+  min-width: 2.2em;
+  padding-left: .4em;
+  padding-right: .4em;
+}
+
+/* A cell holding several controls lays them out in a row that can wrap, so
+   nothing ends up stacked on top of anything else when the column is narrow.
+   This has to hold on its own: the admin's responsive table script only runs
+   at page load, and any table swapped in later would otherwise be unstyled. */
+.vocab-sync td .vs-inline-form,
+.vocab-sync td .button {
+  vertical-align: middle;
+}
+.vocab-sync td {
+  overflow: visible;
+}
+
+/* Narrow screens: give every control its own line inside a cell rather than
+   letting them collide, and let the table scroll sideways if it must. */
+@media (max-width: 640px) {
+  /* Only for a table the admin's responsive script did not take over: let it
+     scroll sideways rather than crush its columns. When the script has done
+     its work the table is already stacked, so leave it alone. */
+  .vocab-sync table:not(.tablesaw) {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .vocab-sync td .vs-inline-form,
+  .vocab-sync td .button {
+    display: flex;
+    width: 100%;
+    margin: 0 0 .35em;
+  }
+  .vocab-sync td .vs-inline-form:last-child,
+  .vocab-sync td .button:last-child {
+    margin-bottom: 0;
+  }
+  .vocab-sync td .vs-inline-form button,
+  .vocab-sync td .button {
+    justify-content: center;
+    text-align: center;
+  }
+  .vocab-sync .vs-move .vs-inline-form {
+    display: inline-flex;
+    width: auto;
+    margin-right: .35em;
+  }
+  .vocab-sync .vs-inline-form input[type="text"],
+  .vocab-sync .vs-inline-form select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Copy box — monospace so long bilingual terms stay easy to scan line by line. */
+.vocab-sync .vs-export-box {
+  width: 100%;
+  margin: 0 0 1.5em;
+  padding: .75em;
+  border: 1px solid #c4c4c4;
+  font-family: monospace;
+  font-size: .95em;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+/* A destructive button in a row of ordinary ones needs to read as different
+   before it is clicked, not after. */
+.vocab-sync .vs-button-danger {
+  color: #c0392b;
+  border-color: #c0392b;
+}
+
+/* ---- History feed --------------------------------------------------------
+   Grouped by day and read as a sequence of small cards, because a log is
+   something people scan for "what happened on Tuesday", not a spreadsheet. */
+.vocab-sync .vs-day {
+  margin: 1.75em 0 .6em;
+  padding-bottom: .3em;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 1em;
+  color: #55606b;
+}
+.vocab-sync .vs-daylist { display: block; }
+
+.vocab-sync .vs-ev {
+  margin: 0 0 .6em;
+  padding: .7em .9em;
+  background: #fafafa;
+  border-left: 3px solid #c8ced4;
+}
+.vocab-sync .vs-ev-undone { opacity: .62; }
+
+.vocab-sync .vs-ev-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .6em;
+  line-height: 1.6;
+}
+.vocab-sync .vs-ev-time { color: #767676; font-variant-numeric: tabular-nums; }
+.vocab-sync .vs-ev-who { font-weight: 600; }
+.vocab-sync .vs-ev-what { color: #2f5d8c; }
+.vocab-sync .vs-ev-vocab { margin-left: auto; }
+.vocab-sync .vs-ev-id { color: #9aa5b0; font-variant-numeric: tabular-nums; }
+.vocab-sync .vs-ev-summary { margin: .45em 0 0; line-height: 1.6; }
+.vocab-sync .vs-ev-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  margin-top: .45em;
+  color: #767676;
+  font-size: .9em;
+}
+
+/* Before and after side by side, with only the changed words marked — a term
+   here can be a whole paragraph, so showing two full copies says nothing. */
+.vocab-sync .vs-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .5em;
+  margin: .5em 0 0;
+}
+.vocab-sync .vs-before,
+.vocab-sync .vs-after {
+  min-width: 0;
+  padding: .45em .6em;
+  border-radius: 3px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.vocab-sync .vs-before { background: #fbefee; }
+.vocab-sync .vs-after { background: #eef7f0; }
+.vocab-sync .vs-cap {
+  display: block;
+  margin-bottom: .15em;
+  color: #777;
+  font-size: .8em;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.vocab-sync .vs-pair del {
+  background: #f3c7c3;
+  text-decoration: line-through;
+  text-decoration-color: #9b2c25;
+}
+.vocab-sync .vs-pair ins { background: #bfe3c8; text-decoration: none; }
+.vocab-sync .vs-none { color: #999; font-style: italic; }
+
+.vocab-sync .vs-single {
+  margin: .5em 0 0;
+  padding: .45em .6em;
+  border-radius: 3px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.vocab-sync .vs-single-add { background: #eef7f0; }
+.vocab-sync .vs-single-remove { background: #fbefee; text-decoration: line-through; }
+
+@media (max-width: 640px) {
+  .vocab-sync .vs-pair { grid-template-columns: 1fr; gap: .35em; }
+  .vocab-sync .vs-ev-vocab { margin-left: 0; }
+}
+
+/* The cancel button sits at the far end of the card header, away from the
+   description, so it is never clicked while reading. */
+.vocab-sync .vs-ev-cancel { margin-left: auto; }
+
+/* A long term is a paragraph: give the two sides room to be read as text.
+   Side by side only once there is width for it — in a narrow column two
+   columns of a paragraph is worse than one. */
+@media (max-width: 900px) {
+  .vocab-sync .vs-pair { grid-template-columns: 1fr; gap: .35em; }
+}
+
+/* iOS zooms the page when a focused input is under 16px and never zooms back. */
+@media (pointer: coarse), (max-width: 820px) {
+  .vocab-sync input[type="text"],
+  .vocab-sync select { font-size: 16px; }
+  .vocab-sync .vs-inline-form { width: 100%; }
+  .vocab-sync .vs-inline-form input[type="text"],
+  .vocab-sync .vs-inline-form select { flex: 1; min-width: 0; }
+}

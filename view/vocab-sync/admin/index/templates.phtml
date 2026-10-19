@@ -1,0 +1,255 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+
+$name = function ($type) use ($labels) {
+    return isset($labels[$type]) ? $labels[$type] : $type;
+};
+
+$describe = function ($row) {
+    $template = isset($row['template_label']) && $row['template_label'] !== ''
+        ? $row['template_label']
+        : ('Template #' . (int) $row['resource_template_id']);
+    $property = isset($row['property_term']) && $row['property_term'] !== ''
+        ? $row['property_term']
+        : 'unknown property';
+    return $this->escapeHtml($template) . ' — <code class="vs-datatype">'
+        . $this->escapeHtml($property) . '</code>';
+};
+
+$allTypes = array_keys($valueCounts);
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => 'Status and resource templates']],
+]); ?>
+
+<?php echo $this->pageTitle('Status and resource templates'); ?>
+
+<p class="vs-intro">
+    Two separate things carry a data type, and they are checked separately here.
+    <strong>Stored values</strong> are the data itself — once these are on
+    <code class="vs-datatype">vocabsync:…</code> the migration is done.
+    <strong>Resource templates</strong> only decide which dropdown appears the
+    next time someone edits a resource; changing one never alters stored data.
+</p>
+
+<div class="vs-section">
+    <h3>Stored values</h3>
+    <span class="vs-count">what the data actually is right now</span>
+</div>
+
+<?php if (!$valueCounts): ?>
+<div class="vs-empty">No values use a Vocab Sync or Custom Vocab data type.</div>
+<?php else: ?>
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>Data type</th>
+            <th>Vocabulary</th>
+            <th>Stored values</th>
+            <th>Templates offering it</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($valueCounts as $type => $count): ?>
+        <tr>
+            <td><code class="vs-datatype"><?php echo $this->escapeHtml($type); ?></code></td>
+            <td><?php echo $this->escapeHtml($name($type)); ?></td>
+            <td>
+                <?php if ($count > 0): ?>
+                    <?php echo (int) $count; ?>
+                <?php else: ?>
+                    <span class="vs-muted">none</span>
+                <?php endif; ?>
+            </td>
+            <td>
+                <?php $used = isset($templateUse[$type]) ? $templateUse[$type] : []; ?>
+                <?php if ($used): ?>
+                    <?php echo count($used); ?>
+                <?php else: ?>
+                    <span class="vs-muted">none</span>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+
+<?php
+$stranded = [];
+$leftBehind = [];
+foreach ($valueCounts as $type => $count) {
+    $used = isset($templateUse[$type]) ? $templateUse[$type] : [];
+    if ($count > 0 && !$used && strpos($type, 'vocabsync:') === 0) {
+        $stranded[] = $type;
+    }
+    // // The template still points at Custom Vocab although no value of that type is left
+    // // = the data was moved but the template was not changed, the hardest case to find.
+    if (strpos($type, 'customvocab:') === 0 && $used) {
+        $leftBehind[$type] = ['rows' => $used, 'values' => $count];
+    }
+}
+?>
+
+<?php if ($leftBehind): ?>
+<div class="vs-warning">
+    <span class="vs-callout-title">Templates still offering a Custom Vocab</span>
+    <p>
+        These properties still hand out the old dropdown when someone edits a
+        resource. Anyone editing them adds values in the old format, which drifts
+        away from everything already migrated.
+    </p>
+    <?php foreach ($leftBehind as $type => $info): ?>
+    <p>
+        <code class="vs-datatype"><?php echo $this->escapeHtml($type); ?></code>
+        — <?php echo $this->escapeHtml($name($type)); ?>
+        <?php if ($info['values'] === 0): ?>
+        <span class="vs-muted">(no values left on this type — only the template is behind)</span>
+        <?php else: ?>
+        <span class="vs-muted">(<?php echo (int) $info['values']; ?> values still on it)</span>
+        <?php endif; ?>
+    </p>
+    <ul>
+        <?php foreach ($info['rows'] as $row): ?>
+        <li><?php echo $describe($row); ?></li>
+        <?php endforeach; ?>
+    </ul>
+    <?php endforeach; ?>
+    <p>Use <strong>Switch a template data type</strong> below to move them.</p>
+</div>
+<?php endif; ?>
+<?php if ($stranded): ?>
+<div class="vs-warning">
+    <span class="vs-callout-title">Values exist but no template offers them</span>
+    <p>
+        These already hold data, yet no resource template lets anyone pick from
+        them. Existing values still display correctly; new ones cannot be added
+        until a template offers the data type.
+    </p>
+    <ul>
+        <?php foreach ($stranded as $type): ?>
+        <li>
+            <code class="vs-datatype"><?php echo $this->escapeHtml($type); ?></code>
+            — <?php echo (int) $valueCounts[$type]; ?> values
+        </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+<?php endif; ?>
+
+<div class="vs-section">
+    <h3>Which templates use what</h3>
+    <span class="vs-count">what the edit form offers</span>
+</div>
+
+<?php foreach ($templateUse as $type => $rows): ?>
+<?php if ($rows): ?>
+<div class="vs-note">
+    <span class="vs-callout-title">
+        <code class="vs-datatype"><?php echo $this->escapeHtml($type); ?></code>
+        — <?php echo $this->escapeHtml($name($type)); ?>
+    </span>
+    <ul>
+        <?php foreach ($rows as $row): ?>
+        <li><?php echo $describe($row); ?></li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+<?php endforeach; ?>
+
+<?php if ($allTypes): ?>
+<div class="vs-section">
+    <h3>Switch a template data type</h3>
+    <span class="vs-count">replaces one with the other, wherever it appears</span>
+</div>
+
+<p class="vs-intro">
+    Every property using the first data type is switched to the second. Other data
+    types on the same property are left alone, and stored values are not touched.
+    The change is recorded below and can be cancelled.
+</p>
+
+<form method="post" class="vs-toolbar"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <input type="hidden" name="op" value="switch">
+    <div class="vs-toolbar-field">
+        <label for="from_type">Replace</label>
+        <select id="from_type" name="from_type" required>
+            <option value=""></option>
+            <?php foreach ($allTypes as $type): ?>
+            <option value="<?php echo $this->escapeHtmlAttr($type); ?>">
+                <?php echo $this->escapeHtml($type); ?> — <?php echo $this->escapeHtml($name($type)); ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="vs-toolbar-field">
+        <label for="to_type">With</label>
+        <select id="to_type" name="to_type" required>
+            <option value=""></option>
+            <?php foreach ($allTypes as $type): ?>
+            <option value="<?php echo $this->escapeHtmlAttr($type); ?>">
+                <?php echo $this->escapeHtml($type); ?> — <?php echo $this->escapeHtml($name($type)); ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="vs-toolbar-actions">
+        <button type="submit">Switch</button>
+    </div>
+</form>
+<?php endif; ?>
+
+<div class="vs-section">
+    <h3>Template change history</h3>
+    <span class="vs-count"><?php echo count($history); ?> recorded</span>
+</div>
+
+<?php if ($history): ?>
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>When</th>
+            <th>Change</th>
+            <th>Properties</th>
+            <th>Cancel it</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($history as $h): ?>
+        <tr>
+            <td><?php echo $this->escapeHtml($h['created']); ?></td>
+            <td>
+                <code class="vs-datatype"><?php echo $this->escapeHtml($h['from_type']); ?></code>
+                →
+                <code class="vs-datatype"><?php echo $this->escapeHtml($h['to_type']); ?></code>
+            </td>
+            <td><?php echo (int) $h['row_count']; ?></td>
+            <td>
+                <?php if ($h['reverted']): ?>
+                <span class="vs-muted">Cancelled</span>
+                <?php else: ?>
+                <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+                    <input type="hidden" name="op" value="revert_template_log">
+                    <input type="hidden" name="log_id" value="<?php echo (int) $h['id']; ?>">
+                    <button type="submit">Cancel this change</button>
+                </form>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+
+<div class="vs-note">
+    Cancelling writes each property back to exactly what it held before that one
+    change, including any other data types it had alongside. Later changes are
+    left alone.
+</div>
+<?php else: ?>
+<div class="vs-empty">
+    No template data type has been changed through Vocab Sync yet.
+</div>
+<?php endif; ?>
+

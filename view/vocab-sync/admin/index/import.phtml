@@ -1,0 +1,199 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => 'Import from Custom Vocab']],
+]); ?>
+
+<?php echo $this->pageTitle('Import from Custom Vocab'); ?>
+
+<?php if (isset($newVocabId)): ?>
+<?php
+$resourceLink = function ($id) use ($resourceTypes) {
+    $id = (int) $id;
+    if (!isset($resourceTypes[$id])) {
+        return '#' . $id;
+    }
+    $url = $this->url('admin/id', ['controller' => $resourceTypes[$id], 'id' => $id]);
+    return sprintf(
+        '<a href="%s" target="_blank" rel="noopener">#%d <span class="vs-ext">&#8599;</span></a>',
+        $this->escapeHtmlAttr($url),
+        $id
+    );
+};
+?>
+
+    <div class="vs-actions">
+        <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $newVocabId]); ?>" class="button">
+            Open the new vocabulary
+        </a>
+        <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'templates']); ?>" class="button">
+            Check resource templates
+        </a>
+        <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'revert-import', 'id' => $importLogId]); ?>" class="button">
+            Cancel this import
+        </a>
+    </div>
+
+    <div class="vs-note">
+        <span class="vs-callout-title">Where things stand</span>
+        The original Custom Vocab is untouched and was not deleted. Use
+        <strong>Check resource templates</strong> above to confirm which dropdown
+        appears the next time someone edits a resource.
+    </div>
+
+    <?php if ($orphanValues): ?>
+    <div class="vs-section">
+        <h3>Values that matched no term</h3>
+        <span class="vs-count"><?php echo count($orphanValues); ?> left in place</span>
+    </div>
+
+    <p class="vs-intro">
+        These values did not match any term in the list, so they were left exactly
+        as they were. Nothing is lost — they still display normally. Open a
+        resource to see the value in context, then recheck them to match
+        automatically or assign each one to a term yourself.
+    </p>
+
+    <div class="vs-actions">
+        <a class="button" href="<?php echo $this->url('admin/vocab-sync', ['action' => 'recheck', 'id' => $newVocabId]); ?>?old_vocab_id=<?php echo (int) $oldId; ?>">
+            Recheck unmatched values
+        </a>
+    </div>
+
+    <table class="tablesaw" data-tablesaw-mode="stack">
+        <thead><tr><th>Resource</th><th>Value</th></tr></thead>
+        <tbody>
+            <?php foreach ($orphanValues as $o): ?>
+            <tr>
+                <td><?php echo $resourceLink($o['resource_id']); ?></td>
+                <td><?php echo $this->escapeHtml($o['text']); ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php endif; ?>
+
+<?php else: ?>
+
+<p class="vs-intro">
+    Copies the terms from a Custom Vocab into a new Vocab Sync vocabulary, then
+    repoints every matching value at the new term IDs. The original Custom Vocab
+    stays exactly as it is, and the import is logged so you can undo it later.
+</p>
+
+<?php if (!$oldVocabs): ?>
+<div class="vs-empty">
+    No Custom Vocabs in Terms mode were found on this installation.
+</div>
+<?php endif; ?>
+
+<div class="vs-note">
+    Only Custom Vocabs in <strong>Terms</strong> mode are listed. Items and URI
+    modes already reference stable IDs and do not have the renaming problem this
+    module solves.
+</div>
+
+<?php
+$fresh = [];
+$done = [];
+foreach ($oldVocabs as $v) {
+    if (isset($importedInto[(int) $v['id']])) {
+        $done[] = $v;
+    } else {
+        $fresh[] = $v;
+    }
+}
+$offer = $showAll ? $oldVocabs : $fresh;
+?>
+
+<?php if ($done): ?>
+<div class="vs-note">
+    <span class="vs-callout-title">
+        <?php echo count($done); ?>
+        <?php echo (count($done) === 1) ? 'vocabulary is' : 'vocabularies are'; ?>
+        already imported
+    </span>
+    <ul>
+        <?php foreach ($done as $v): ?>
+        <li>
+            <?php echo $this->escapeHtml($v['label']); ?> —
+            <?php foreach ($importedInto[(int) $v['id']] as $i => $target): ?>
+                <?php echo $i ? ', ' : ''; ?>
+                <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $target['id']]); ?>">
+                    <?php echo $this->escapeHtml($target['label']); ?>
+                </a>
+            <?php endforeach; ?>
+        </li>
+        <?php endforeach; ?>
+    </ul>
+    <p>
+        <?php if ($showAll): ?>
+        They are included in the list below. Importing again creates a second
+        vocabulary holding the same terms.
+        <?php else: ?>
+        They are hidden from the list below.
+        <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'import']); ?>?show_all=1">Show them anyway</a>
+        — useful if you deleted the imported vocabulary and want to start over.
+        <?php endif; ?>
+    </p>
+</div>
+<?php endif; ?>
+
+<?php if (!$offer): ?>
+<div class="vs-empty">
+    Every Custom Vocab in Terms mode has been imported already.
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'import']); ?>?show_all=1">Show them anyway</a>
+    to import one a second time.
+</div>
+<?php else: ?>
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <div class="field">
+        <label for="old_vocab_id">Custom Vocab to import</label>
+        <div class="inputs">
+            <select id="old_vocab_id" name="old_vocab_id" required>
+                <option value=""></option>
+                <?php foreach ($offer as $v): ?>
+                <option value="<?php echo (int) $v['id']; ?>">
+                    <?php echo $this->escapeHtml($v['label']); ?>
+                    — <?php echo count(json_decode($v['terms'], true) ?: []); ?> terms
+                    <?php echo isset($importedInto[(int) $v['id']]) ? ' (already imported)' : ''; ?>
+                </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
+    <div class="field">
+        <label for="new_label">Name for the new vocabulary</label>
+        <div class="inputs">
+            <input type="text" id="new_label" name="new_label"
+                   placeholder="Leave empty to keep the original name">
+        </div>
+    </div>
+    <div class="field">
+        <label for="repoint_templates">Resource templates</label>
+        <div class="inputs">
+            <label class="vs-checkbox">
+                <input type="checkbox" id="repoint_templates" name="repoint_templates" value="1" checked>
+                Switch every template using this Custom Vocab to the new vocabulary
+            </label>
+            <p class="vs-field-hint">
+                Without this, resources created after the import still get the old
+                dropdown while existing ones show the new terms. You can change this
+                later on the Resource templates page.
+            </p>
+        </div>
+    </div>
+    <button type="submit">Import</button>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'index']); ?>">Cancel</a>
+    <p class="vs-field-hint">
+        The move runs as a few database operations rather than one per value, so
+        even tens of thousands of values finish in seconds. If the page ever does
+        time out, nothing is left half-done — check the Status page to see where
+        things stand.
+    </p>
+</form>
+<?php endif; ?>
+
+<?php endif; ?>

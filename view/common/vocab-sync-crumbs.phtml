@@ -1,0 +1,24 @@
+<?php
+/**
+ * The module's breadcrumb — the way back has to be in the same place on every page.
+ *
+ * $crumbs = [['label' => 'Keywords', 'url' => '...'], ['label' => 'Recheck']]
+ * The last one is the current page and has no url.
+ */
+$home = $this->url('admin/vocab-sync', ['action' => 'index']);
+?>
+<nav class="vs-breadcrumb" aria-label="Breadcrumb">
+    <a href="<?php echo $this->escapeHtmlAttr($home); ?>">Vocab Sync</a>
+    <?php foreach ($crumbs as $crumb): ?>
+        <span class="vs-crumb-sep" aria-hidden="true">›</span>
+        <?php if (!empty($crumb['url'])): ?>
+        <a href="<?php echo $this->escapeHtmlAttr($crumb['url']); ?>">
+            <?php echo $this->escapeHtml($crumb['label']); ?>
+        </a>
+        <?php else: ?>
+        <span class="vs-crumb-current" aria-current="page">
+            <?php echo $this->escapeHtml($crumb['label']); ?>
+        </span>
+        <?php endif; ?>
+    <?php endforeach; ?>
+</nav>

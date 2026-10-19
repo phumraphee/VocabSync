@@ -1,0 +1,134 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+
+$resourceLink = function ($id) use ($resourceTypes, $titles) {
+    $id = (int) $id;
+    $label = isset($titles[$id]) && $titles[$id] !== ''
+        ? $titles[$id]
+        : ('Resource #' . $id);
+    if (!isset($resourceTypes[$id])) {
+        return $this->escapeHtml($label);
+    }
+    $url = $this->url('admin/id', ['controller' => $resourceTypes[$id], 'id' => $id]);
+    return sprintf(
+        '<a href="%s" target="_blank" rel="noopener">%s <span class="vs-ext">&#8599;</span></a>',
+        $this->escapeHtmlAttr($url),
+        $this->escapeHtml($label)
+    );
+};
+
+$editLink = function ($id) use ($resourceTypes) {
+    $id = (int) $id;
+    if (!isset($resourceTypes[$id])) {
+        return '';
+    }
+    $url = $this->url('admin/id', [
+        'controller' => $resourceTypes[$id],
+        'id' => $id,
+        'action' => 'edit',
+    ]);
+    return sprintf(
+        '<a class="button" href="%s" target="_blank" rel="noopener">Edit</a>',
+        $this->escapeHtmlAttr($url)
+    );
+};
+
+$typeLabels = ['item' => 'Item', 'item-set' => 'Item set', 'media' => 'Media'];
+
+// // Thumbnails through Omeka's own helper (the same as the Items page), not a URL built here
+// // · when there is no helper or no picture, an empty box instead of an error.
+$thumb = function ($id) use ($resources) {
+    if (!isset($resources[$id])) {
+        return '<span class="vs-thumb vs-thumb-empty"></span>';
+    }
+    try {
+        $html = $this->thumbnail($resources[$id], 'square');
+        return $html ? $html : '<span class="vs-thumb vs-thumb-empty"></span>';
+    } catch (\Throwable $e) {
+        return '<span class="vs-thumb vs-thumb-empty"></span>';
+    }
+};
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [
+        ['label' => $term['vocab_label'], 'url' => $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $term['vocab_id']])],
+        ['label' => 'Used by'],
+    ],
+]); ?>
+
+<?php echo $this->pageTitle('Used by: ' . $term['label']); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Term</span>
+    <strong><?php echo $this->escapeHtml($term['label']); ?></strong>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Vocabulary</span>
+    <strong><?php echo $this->escapeHtml($term['vocab_label']); ?></strong>
+    <span class="vs-context-sep">·</span>
+    <?php if ($term['is_active']): ?>
+        <span class="vs-pill vs-pill-active">Active</span>
+    <?php else: ?>
+        <span class="vs-pill vs-pill-retired">Retired</span>
+    <?php endif; ?>
+</div>
+
+<p class="vs-intro">
+    <?php echo (int) $total; ?>
+    <?php echo ((int) $total === 1) ? 'resource uses' : 'resources use'; ?>
+    this term<?php if ((int) $valueCount !== (int) $total): ?>,
+    across <?php echo (int) $valueCount; ?> values — some resources use it in more
+    than one field<?php endif; ?>.
+    Renaming the term changes what all of them display; you only need to open one
+    if you want to change which term it points at. Links open in a new tab so you
+    keep your place here.
+</p>
+
+
+<?php if ($ids): ?>
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th class="vs-thumb-col"><span class="screen-reader-text">Thumbnail</span></th>
+            <th>Resource</th>
+            <th>Type</th>
+            <th>Open</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($ids as $id): ?>
+        <tr>
+            <td class="vs-thumb-col"><?php echo $thumb($id); ?></td>
+            <td><?php echo $resourceLink($id); ?></td>
+            <td>
+                <?php if (isset($resourceTypes[$id])): ?>
+                    <?php echo $typeLabels[$resourceTypes[$id]]; ?>
+                    <span class="vs-muted">#<?php echo (int) $id; ?></span>
+                <?php else: ?>
+                    <span class="vs-muted">Unknown</span>
+                <?php endif; ?>
+            </td>
+            <td><?php echo $editLink($id); ?></td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+
+<?php if ($totalPages > 1): ?>
+<div class="vs-pagination">
+    <?php if ($page > 1): ?>
+    <a class="button" href="<?php echo $this->url('admin/vocab-sync', ['action' => 'usage', 'id' => $term['id']]); ?>?page=<?php echo $page - 1; ?>">Previous</a>
+    <?php endif; ?>
+    <span class="vs-muted">Page <?php echo (int) $page; ?> of <?php echo (int) $totalPages; ?></span>
+    <?php if ($page < $totalPages): ?>
+    <a class="button" href="<?php echo $this->url('admin/vocab-sync', ['action' => 'usage', 'id' => $term['id']]); ?>?page=<?php echo $page + 1; ?>">Next</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<?php else: ?>
+<div class="vs-empty">
+    Nothing uses this term yet. It will appear in the dropdown for any property
+    set to this vocabulary.
+</div>
+<?php endif; ?>

@@ -1,0 +1,46 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => 'Import history']],
+]); ?>
+
+<?php echo $this->pageTitle('Revert import batch'); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Batch</span>
+    <strong>#<?php echo (int) $log['id']; ?></strong>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Into vocabulary</span>
+    <strong>vocabsync:<?php echo (int) $log['new_vocab_id']; ?></strong>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Back to</span>
+    <strong>Custom Vocab id <?php echo (int) $log['old_vocab_id']; ?></strong>
+</div>
+
+<p class="vs-intro">
+    This batch ran on <?php echo $this->escapeHtml($log['created']); ?> and logged
+    <strong><?php echo (int) $previewCount; ?></strong>
+    <?php echo ((int) $previewCount === 1) ? 'value' : 'values'; ?>.
+    Reverting writes each one back to the exact text and data type it had before,
+    returning them to Custom Vocab id <?php echo (int) $log['old_vocab_id']; ?>.
+</p>
+
+<div class="vs-note">
+    <span class="vs-callout-title">Later edits are protected</span>
+    Any value that has since been changed to a different term is skipped, not
+    overwritten. Only values still holding what this batch set are reverted.
+</div>
+
+<div class="vs-note">
+    <span class="vs-callout-title">Terms stay</span>
+    The vocabulary and its terms are kept. You may have added or renamed terms
+    since the import, and deleting them would throw that work away. Remove them
+    yourself once you are sure they are no longer needed.
+</div>
+
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <button type="submit">Revert <?php echo (int) $previewCount; ?> values</button>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'imports']); ?>">Cancel</a>
+</form>

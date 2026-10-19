@@ -1,0 +1,117 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+
+$base = $this->url('admin/vocab-sync', ['action' => 'export', 'id' => $vocab['id']]);
+$query = function (array $extra = []) use ($base, $order, $status) {
+    return $base . '?' . http_build_query(array_merge(
+        ['order' => $order, 'status' => $status],
+        $extra
+    ));
+};
+
+$plain = [];
+foreach ($terms as $t) {
+    $plain[] = $t['label'];
+}
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [
+        ['label' => $vocab['label'], 'url' => $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']])],
+        ['label' => 'Export'],
+    ],
+]); ?>
+
+<?php echo $this->pageTitle('Export: ' . $this->escapeHtml($vocab['label'])); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Showing</span>
+    <strong><?php echo count($terms); ?></strong>
+    <span class="vs-context-label">terms</span>
+</div>
+
+<form method="get" class="vs-toolbar">
+    <div class="vs-toolbar-field">
+        <label for="status">Include</label>
+        <select id="status" name="status" onchange="this.form.submit()">
+            <option value="active"<?php echo $status === 'active' ? ' selected' : ''; ?>>Active only</option>
+            <option value="all"<?php echo $status === 'all' ? ' selected' : ''; ?>>Active and retired</option>
+            <option value="retired"<?php echo $status === 'retired' ? ' selected' : ''; ?>>Retired only</option>
+        </select>
+    </div>
+    <div class="vs-toolbar-field">
+        <label for="order">Order</label>
+        <select id="order" name="order" onchange="this.form.submit()">
+            <option value="label"<?php echo $order === 'label' ? ' selected' : ''; ?>>Alphabetical</option>
+            <option value="added"<?php echo $order === 'added' ? ' selected' : ''; ?>>Order added</option>
+            <option value="custom"<?php echo $order === 'custom' ? ' selected' : ''; ?>>Arranged by hand</option>
+            <option value="usage"<?php echo $order === 'usage' ? ' selected' : ''; ?>>Most used</option>
+        </select>
+    </div>
+    <div class="vs-toolbar-actions">
+        <noscript><button type="submit">Apply</button></noscript>
+        <a class="button" href="<?php echo $this->escapeHtmlAttr($query(['format' => 'csv'])); ?>">
+            Download CSV
+        </a>
+    </div>
+</form>
+
+<?php if (!$terms): ?>
+<div class="vs-empty">No terms match this selection.</div>
+<?php else: ?>
+
+<div class="vs-section">
+    <h3>Just the terms</h3>
+    <span class="vs-count">one per line, ready to copy</span>
+</div>
+
+<p class="vs-intro">
+    Select all in the box and copy. This is the plain wording only — the format a
+    Custom Vocab term list expects, and the easiest thing to paste into a document
+    or message.
+</p>
+
+<textarea class="vs-export-box" rows="14" readonly onclick="this.select()"><?php
+echo $this->escapeHtml(implode("\n", $plain));
+?></textarea>
+
+<div class="vs-section">
+    <h3>With details</h3>
+    <span class="vs-count">what the CSV contains</span>
+</div>
+
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Term</th>
+            <th>Status</th>
+            <th>Values in use</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($terms as $t): ?>
+        <tr>
+            <td><span class="vs-muted"><?php echo (int) $t['id']; ?></span></td>
+            <td><?php echo $this->escapeHtml($t['label']); ?></td>
+            <td>
+                <?php if ($t['is_active']): ?>
+                    <span class="vs-pill vs-pill-active">Active</span>
+                <?php else: ?>
+                    <span class="vs-pill vs-pill-retired">Retired</span>
+                <?php endif; ?>
+            </td>
+            <td><?php echo number_format((int) $t['usage_count']); ?></td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+
+<div class="vs-note">
+    <span class="vs-callout-title">The ID column matters if you plan to come back</span>
+    Resources store the ID, not the wording. Keeping the IDs in an exported copy is
+    what lets you tell later which stored value was which term, even if the wording
+    has changed since.
+</div>
+
+<?php endif; ?>

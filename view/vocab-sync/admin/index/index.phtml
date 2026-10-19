@@ -1,0 +1,157 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->pageTitle('Vocab Sync'); ?>
+
+<p class="vs-intro">
+    Controlled vocabularies where each term has a stable ID. Renaming a term
+    updates every resource that already uses it, with no rewrite and no guessing
+    which term was renamed to what.
+</p>
+
+<div class="vs-actions">
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'add-vocab']); ?>" class="button">New vocabulary</a>
+    <?php if ($customVocabAvailable): ?>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'import']); ?>" class="button">Import from Custom Vocab</a>
+    <?php endif; ?>
+</div>
+
+<?php if (!$customVocabAvailable): ?>
+<div class="vs-note">
+    <span class="vs-callout-title">Custom Vocab is not installed</span>
+    Importing and reverting are hidden because there is no Custom Vocab to move
+    values to or from. Vocab Sync runs on its own and needs nothing else.
+</div>
+<?php endif; ?>
+
+<?php if ($vocabs): ?>
+<?php
+$sortOptions = [
+    'label' => 'Name A–Z',
+    'label_desc' => 'Name Z–A',
+    'terms_desc' => 'Most terms',
+    'terms_asc' => 'Fewest terms',
+    'values_desc' => 'Most values in use',
+    'newest' => 'Newest first',
+    'oldest' => 'Oldest first',
+];
+?>
+<form method="get" class="vs-toolbar">
+    <div class="vs-toolbar-field">
+        <label for="sort">Sort by</label>
+        <select id="sort" name="sort" onchange="this.form.submit()">
+            <?php foreach ($sortOptions as $key => $label): ?>
+            <option value="<?php echo $this->escapeHtmlAttr($key); ?>"<?php echo $sort === $key ? ' selected' : ''; ?>>
+                <?php echo $this->escapeHtml($label); ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="vs-toolbar-actions">
+        <noscript><button type="submit">Apply</button></noscript>
+    </div>
+</form>
+
+<?php
+$anyUnowned = false;
+foreach ($vocabs as $v) {
+    if (empty($v['owner_name'])) { $anyUnowned = true; break; }
+}
+?>
+<?php if ($anyUnowned): ?>
+<div class="vs-note">
+    Some vocabularies say <strong>not recorded</strong> under “Added by”. They were
+    made before the module started keeping that, and there is no other source to
+    recover it from — so it is left blank rather than guessed. You can state it
+    yourself on a vocabulary's own page, and the activity log will note that it was
+    stated after the fact.
+</div>
+<?php endif; ?>
+
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>Vocabulary</th>
+            <th>Data type</th>
+            <th>Terms</th>
+            <th>Values in use</th>
+            <th>Added by</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($vocabs as $v): ?>
+        <?php $used = $valueCounts['vocabsync:' . (int) $v['id']] ?? 0; ?>
+        <tr>
+            <td>
+                <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $v['id']]); ?>">
+                    <?php echo $this->escapeHtml($v['label']); ?>
+                </a>
+            </td>
+            <td><code class="vs-datatype">vocabsync:<?php echo (int) $v['id']; ?></code></td>
+            <td>
+                <?php echo (int) $v['active_count']; ?> active
+                <span class="vs-muted">of <?php echo (int) $v['term_count']; ?> total</span>
+            </td>
+            <td>
+                <?php if ($used > 0): ?>
+                    <?php echo number_format($used); ?>
+                <?php else: ?>
+                    <span class="vs-muted">none</span>
+                <?php endif; ?>
+            </td>
+            <td>
+                <?php if (!empty($v['owner_name'])): ?>
+                    <?php echo $this->escapeHtml($v['owner_name']); ?>
+                <?php else: ?>
+                    <span class="vs-muted">not recorded</span>
+                <?php endif; ?>
+                <?php if (!empty($v['created'])): ?>
+                <div class="vs-muted"><?php echo $this->escapeHtml(substr($v['created'], 0, 10)); ?></div>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+<?php else: ?>
+<div class="vs-empty">
+    No vocabularies yet. Create one from scratch, or import an existing
+    Custom Vocab to carry its terms and values across.
+</div>
+<?php endif; ?>
+
+<div class="vs-maintenance">
+    <h3>Checking and maintenance</h3>
+    <dl class="vs-links">
+        <dt>
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'activity']); ?>">
+                Activity
+            </a>
+        </dt>
+        <dd>Everything that has changed, who did it, and when.</dd>
+
+        <dt>
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'templates']); ?>">
+                Status and resource templates
+            </a>
+        </dt>
+        <dd>See what the data actually is, and which dropdown the edit form offers.</dd>
+
+        <?php if ($customVocabAvailable): ?>
+        <dt>
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'imports']); ?>">
+                Import history
+            </a>
+        </dt>
+        <dd>Every batch that changed values, each one undoable.</dd>
+        <?php endif; ?>
+
+        <dt class="vs-link-danger">
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'freeze']); ?>">
+                Freeze for removal
+            </a>
+        </dt>
+        <dd>Only before uninstalling the module. Turns every value into plain text and cannot be reversed.</dd>
+    </dl>
+</div>

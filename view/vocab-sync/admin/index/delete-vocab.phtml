@@ -1,0 +1,103 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [
+        ['label' => $vocab['label'], 'url' => $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']])],
+        ['label' => 'Delete'],
+    ],
+]); ?>
+
+<?php echo $this->pageTitle('Delete: ' . $vocab['label']); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Vocabulary</span>
+    <strong><?php echo $this->escapeHtml($vocab['label']); ?></strong>
+    <code class="vs-datatype">vocabsync:<?php echo (int) $vocab['id']; ?></code>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Terms</span>
+    <strong><?php echo (int) $termCount; ?></strong>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Values in use</span>
+    <strong><?php echo (int) $inUse; ?></strong>
+</div>
+
+<?php if ($inUse > 0): ?>
+
+<div class="vs-danger">
+    <span class="vs-callout-title">This vocabulary cannot be deleted</span>
+    <p>
+        <?php echo (int) $inUse; ?> values still use it. Deleting the terms would
+        leave those values holding an ID with no wording behind it, and nothing
+        would display them correctly again.
+    </p>
+    <p>
+        To remove it anyway, first move those values somewhere else — either
+        <strong>Revert to Custom Vocab</strong>, or <strong>Freeze for removal</strong>
+        to turn them into plain text.
+    </p>
+</div>
+
+
+<?php else: ?>
+
+<p class="vs-intro">
+    No values use this vocabulary, so deleting it affects no data. Its
+    <?php echo (int) $termCount; ?> terms go with it.
+</p>
+
+<?php if ($termCount === 0): ?>
+<div class="vs-note">
+    This vocabulary is completely empty — the usual sign of an import that was
+    interrupted before it finished, or one that was never used.
+</div>
+<?php endif; ?>
+
+<?php if ($templates): ?>
+<div class="vs-warning">
+    <span class="vs-callout-title">
+        <?php echo count($templates); ?>
+        <?php echo (count($templates) === 1) ? 'template property offers' : 'template properties offer'; ?>
+        this vocabulary
+    </span>
+    <p>
+        The data type will be removed from them, leaving any other data types on
+        the same property untouched. This is recorded on the Status page and can
+        be reversed.
+    </p>
+    <ul>
+        <?php foreach ($templates as $row): ?>
+        <li>
+            <?php
+            $t = (isset($row['template_label']) && $row['template_label'] !== '')
+                ? $row['template_label'] : ('Template #' . (int) $row['resource_template_id']);
+            $prop = (isset($row['property_term']) && $row['property_term'] !== '')
+                ? $row['property_term'] : 'unknown property';
+            ?>
+            <?php echo $this->escapeHtml($t); ?>
+            — <code class="vs-datatype"><?php echo $this->escapeHtml($prop); ?></code>
+        </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
+<div class="vs-danger">
+    <span class="vs-callout-title">Deleting the vocabulary cannot be reversed</span>
+    The terms are removed outright. Import history entries pointing at it stop
+    showing, though nothing they recorded is lost.
+</div>
+
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <div class="field">
+        <label for="confirm_text">Type DELETE to confirm</label>
+        <div class="inputs">
+            <input type="text" id="confirm_text" name="confirm_text" required placeholder="DELETE">
+        </div>
+    </div>
+    <button type="submit">Delete vocabulary</button>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']]); ?>">Cancel</a>
+</form>
+
+<?php endif; ?>

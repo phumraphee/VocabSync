@@ -1,0 +1,185 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php
+// // Link to the resource's admin page · Omeka's `id` route is
+// // /:controller/:id[/:action] under /admin (as routes.config.php says)
+// // · when the kind of resource is not known, the number alone beats a broken link.
+$resourceLink = function ($id) use ($resourceTypes) {
+    $id = (int) $id;
+    if (!isset($resourceTypes[$id])) {
+        return '#' . $id;
+    }
+    $url = $this->url('admin/id', ['controller' => $resourceTypes[$id], 'id' => $id]);
+    return sprintf(
+        '<a href="%s" target="_blank" rel="noopener">#%d <span class="vs-ext">&#8599;</span></a>',
+        $this->escapeHtmlAttr($url),
+        $id
+    );
+};
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [
+        ['label' => $vocab['label'], 'url' => $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']])],
+        ['label' => 'Recheck unmatched values'],
+    ],
+]); ?>
+
+<?php echo $this->pageTitle('Recheck: ' . $vocab['label']); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Vocabulary</span>
+    <strong><?php echo $this->escapeHtml($vocab['label']); ?></strong>
+    <code class="vs-datatype">vocabsync:<?php echo (int) $vocab['id']; ?></code>
+    <?php if (!$needOldVocab): ?>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Comparing with</span>
+    <strong>Custom Vocab id <?php echo (int) $oldId; ?></strong>
+    <?php endif; ?>
+</div>
+
+<?php if ($needOldVocab): ?>
+
+<p class="vs-intro">
+    Unmatched values are the ones an import left behind because their text did not
+    match any term. To find them, pick the Custom Vocab this vocabulary was
+    imported from.
+</p>
+
+<?php if ($oldVocabs): ?>
+<form method="get">
+    <div class="field">
+        <label for="old_vocab_id">Original Custom Vocab</label>
+        <div class="inputs">
+            <select id="old_vocab_id" name="old_vocab_id" required>
+                <option value=""></option>
+                <?php foreach ($oldVocabs as $v): ?>
+                <option value="<?php echo (int) $v['id']; ?>">
+                    <?php echo $this->escapeHtml($v['label']); ?> (id <?php echo (int) $v['id']; ?>)
+                </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
+    <button type="submit">Find unmatched values</button>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']]); ?>">Cancel</a>
+</form>
+<?php else: ?>
+<div class="vs-empty">No Custom Vocabs in Terms mode were found on this installation.</div>
+<?php endif; ?>
+
+<?php else: ?>
+
+<p class="vs-intro">
+    Every change on this page is logged, so it can be cancelled from Import history.
+</p>
+
+<div class="vs-section">
+    <h3>Ready to match</h3>
+    <span class="vs-count"><?php echo count($autoMatch); ?> values</span>
+</div>
+
+<?php if ($autoMatch): ?>
+<p class="vs-intro">
+    These values now match a term exactly — usually because the term was added
+    after the original import.
+</p>
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead><tr><th>Resource</th><th>Value</th></tr></thead>
+    <tbody>
+        <?php foreach ($autoMatch as $r): ?>
+        <tr>
+            <td><?php echo $resourceLink($r['resource_id']); ?></td>
+            <td><?php echo $this->escapeHtml($r['value']); ?></td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <input type="hidden" name="op" value="recheck_all">
+    <input type="hidden" name="old_vocab_id" value="<?php echo (int) $oldId; ?>">
+    <button type="submit">Match all <?php echo count($autoMatch); ?></button>
+</form>
+<?php else: ?>
+<div class="vs-empty">Nothing matches automatically right now.</div>
+<?php endif; ?>
+
+<div class="vs-section">
+    <h3>Needs a decision</h3>
+    <span class="vs-count"><?php echo count($needManual); ?> values</span>
+</div>
+
+<?php if ($needManual): ?>
+<p class="vs-intro">
+    No term matches these exactly. Open a resource to see the value in context
+    before deciding — links open in a new tab so you keep your place here. Then
+    either assign an existing term, or add the value as a new term in one step.
+    Both are logged.
+</p>
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>Resource</th>
+            <th>Value</th>
+            <th>Assign an existing term</th>
+            <th>Or add it as a new term</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($needManual as $r): ?>
+        <tr>
+            <td><?php echo $resourceLink($r['resource_id']); ?></td>
+            <td><strong><?php echo $this->escapeHtml($r['value']); ?></strong></td>
+            <td>
+                <?php if ($terms): ?>
+                <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+                    <input type="hidden" name="op" value="assign_manual">
+                    <input type="hidden" name="old_vocab_id" value="<?php echo (int) $oldId; ?>">
+                    <input type="hidden" name="value_id" value="<?php echo (int) $r['id']; ?>">
+                    <select name="term_id" required>
+                        <option value="">Choose a term</option>
+                        <?php foreach ($terms as $t): ?>
+                        <option value="<?php echo (int) $t['id']; ?>">
+                            <?php echo $this->escapeHtml($t['label']); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit">Assign</button>
+                </form>
+                <?php else: ?>
+                <span class="vs-muted">No terms in this vocabulary yet</span>
+                <?php endif; ?>
+            </td>
+            <td>
+                <?php if (!empty($canEdit)): ?>
+                <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+                    <input type="hidden" name="op" value="add_and_assign">
+                    <input type="hidden" name="old_vocab_id" value="<?php echo (int) $oldId; ?>">
+                    <input type="hidden" name="value_id" value="<?php echo (int) $r['id']; ?>">
+                    <input type="text" name="new_term_label"
+                           value="<?php echo $this->escapeHtmlAttr($r['value']); ?>">
+                    <button type="submit">Add and assign</button>
+                </form>
+                <?php else: ?>
+                <span class="vs-muted">Adding a term needs an Editor account</span>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+
+<div class="vs-note">
+    <span class="vs-callout-title">Add and assign</span>
+    Creates the term in this vocabulary and points the value at it, in one step.
+    Edit the text first if the new term should read differently from the old
+    value. Reverting later undoes the assignment; the term itself stays, and you
+    can retire it from the terms list.
+</div>
+<?php else: ?>
+<div class="vs-empty">Nothing needs a decision. Every value is accounted for.</div>
+<?php endif; ?>
+
+
+<?php endif; ?>

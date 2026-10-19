@@ -1,0 +1,497 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+$this->headScript()->appendFile($this->assetUrl('js/vocab-sync.js', 'VocabSync'), 'text/javascript', ['defer' => 'defer']);
+
+// // The list's state is carried through every link and form; otherwise Save
+// // jumps back to page 1 of the unfiltered list, and the work is lost.
+$listState = ['q' => $q, 'status' => $status, 'sort' => $sort, 'page' => $page, 'per_page' => $perPage];
+$listState = array_filter($listState, function ($v) { return $v !== '' && $v !== null; });
+
+$baseUrl = $this->url('admin/vocab-sync', ['action' => 'edit-vocab', 'id' => $vocab['id']]);
+$rowUrl = function (array $extra = []) use ($baseUrl, $listState) {
+    return $baseUrl . '?' . http_build_query(array_merge($listState, $extra));
+};
+$perPageLabels = [25 => '25', 50 => '50', 100 => '100', 200 => '200', 0 => 'All'];
+
+// // 1.36.2: only Editor and above may edit terms · other roles see this page read-only
+// // (buttons hidden, and the controller refuses the POST as well).
+$canEdit = !empty($canEdit);
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => $vocab['label']]],
+]); ?>
+
+<?php echo $this->pageTitle($this->escapeHtml($vocab['label'])); ?>
+
+<div class="vs-context">
+    <span class="vs-context-label">Data type</span>
+    <code class="vs-datatype">vocabsync:<?php echo (int) $vocab['id']; ?></code>
+    <span class="vs-context-sep">·</span>
+    <span class="vs-context-label">Terms</span>
+    <strong><?php echo (int) $totalAll; ?></strong>
+</div>
+
+<p class="vs-intro">
+    To use this vocabulary, open a resource template, edit the property, and set
+    its data type to the name above. Renaming a term updates every resource
+    already using it — you do not need to touch those resources.
+</p>
+
+<?php if (!$canEdit): ?>
+<div class="vs-note">
+    <span class="vs-callout-title">View only</span>
+    Changing terms needs an Editor, Supervisor or Global Administrator account.
+    You can still view the terms here and choose them when editing a resource.
+</div>
+<?php endif; ?>
+
+<?php if ($duplicates): ?>
+<div class="vs-warning">
+    <span class="vs-callout-title">Duplicate wording</span>
+    <p>
+        More than one term shares the same wording, which makes them impossible to
+        tell apart when a resource is saved. Rename one of each pair, or retire one
+        and reassign its values.
+    </p>
+    <ul>
+        <?php foreach ($duplicates as $d): ?>
+        <li>
+            <strong><?php echo $this->escapeHtml($d['label']); ?></strong>
+            — <?php echo (int) $d['n']; ?> terms
+        </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
+<?php if ($canEdit): ?>
+<div class="vs-add-form">
+    <h3>Add a term</h3>
+    <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+        <input type="hidden" name="op" value="add_term">
+        <?php foreach ($listState as $k => $v): ?>
+        <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+        <?php endforeach; ?>
+        <input type="text" name="term_label" placeholder="New term" required>
+        <button type="submit">Add term</button>
+    </form>
+</div>
+<?php endif; ?>
+
+<div class="vs-note">
+    <span class="vs-callout-title">Order in the edit form</span>
+    <p>
+        How this vocabulary's terms are listed in the dropdown when someone edits a
+        resource. This is separate from the sorting below, which only affects this
+        admin page.
+    </p>
+    <p class="vs-field-hint">
+        <strong>Most used first</strong> puts the terms people actually reach for at
+        the top, which suits a long list. The counts are read fresh each time the
+        form loads, so the order shifts as the collection grows. Terms never used
+        sit at the end, and ties fall back to alphabetical so the order stays steady.
+    </p>
+    <?php
+    $currentOrder = isset($vocab['term_order']) ? $vocab['term_order'] : 'label';
+    $orderChoices = [
+        'label' => 'Alphabetical, A to Z',
+        'label_desc' => 'Alphabetical, Z to A',
+        'added' => 'Oldest added first',
+        'added_desc' => 'Newest added first',
+        'used' => 'Most used first',
+        'used_asc' => 'Least used first',
+        'custom' => 'Arranged by hand',
+    ];
+    ?>
+    <?php if (!$canEdit): ?>
+    <p>Currently: <strong><?php echo $this->escapeHtml($orderChoices[$currentOrder] ?? $currentOrder); ?></strong></p>
+    <?php else: ?>
+    <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+        <input type="hidden" name="op" value="set_term_order">
+        <?php foreach ($listState as $k => $v): ?>
+        <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+        <?php endforeach; ?>
+        <select name="term_order">
+            <?php foreach ($orderChoices as $key => $label): ?>
+            <option value="<?php echo $this->escapeHtmlAttr($key); ?>"<?php echo $currentOrder === $key ? ' selected' : ''; ?>>
+                <?php echo $this->escapeHtml($label); ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit">Save order</button>
+    </form>
+    <?php endif; ?>
+</div>
+
+<?php if ($currentOrder === 'custom' && $sort !== 'custom' && $canEdit): ?>
+<div class="vs-warning">
+    <span class="vs-callout-title">You are not looking at the arranged order</span>
+    This vocabulary is set to a hand-arranged order, but this list is sorted
+    another way, so the arrows to move terms are hidden. Choose
+    <strong>Arranged by hand</strong> under Sort by to arrange them.
+</div>
+<?php endif; ?>
+
+<?php if ($sort === 'custom' && $canEdit): ?>
+<div class="vs-note">
+    <span class="vs-callout-title">Arranging by hand</span>
+    The arrows swap a term with the one next to it. Arranging works on the whole
+    list, so clear any search first — otherwise a term can appear to jump past
+    ones that are filtered out of view.
+    <?php if ($currentOrder !== 'custom'): ?>
+    This arrangement is saved, but the edit form is not using it: set the order
+    above to <strong>Arranged by hand</strong> for it to take effect.
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<div class="vs-section">
+    <h3>Terms</h3>
+    <span class="vs-count" id="vs-term-count">
+        <?php if ($q !== '' || $status !== 'all'): ?>
+            <?php echo (int) $totalFound; ?> of <?php echo (int) $totalAll; ?> shown
+        <?php else: ?>
+            <?php echo (int) $totalAll; ?> total
+        <?php endif; ?>
+    </span>
+</div>
+
+<form method="get" class="vs-toolbar" id="vs-toolbar" action="<?php echo $this->escapeHtmlAttr($baseUrl); ?>">
+    <div class="vs-toolbar-field">
+        <label for="q">Search</label>
+        <input type="text" id="q" name="q" value="<?php echo $this->escapeHtmlAttr($q); ?>"
+               placeholder="Term contains…" autocomplete="off">
+    </div>
+    <div class="vs-toolbar-field">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+            <option value="all"<?php echo $status === 'all' ? ' selected' : ''; ?>>All</option>
+            <option value="active"<?php echo $status === 'active' ? ' selected' : ''; ?>>Active only</option>
+            <option value="retired"<?php echo $status === 'retired' ? ' selected' : ''; ?>>Retired only</option>
+        </select>
+    </div>
+    <div class="vs-toolbar-field">
+        <label for="sort">Sort by</label>
+        <select id="sort" name="sort">
+            <option value="label"<?php echo $sort === 'label' ? ' selected' : ''; ?>>Term A–Z</option>
+            <option value="label_desc"<?php echo $sort === 'label_desc' ? ' selected' : ''; ?>>Term Z–A</option>
+            <option value="usage"<?php echo $sort === 'usage' ? ' selected' : ''; ?>>Most used</option>
+            <option value="usage_asc"<?php echo $sort === 'usage_asc' ? ' selected' : ''; ?>>Least used</option>
+            <option value="newest"<?php echo $sort === 'newest' ? ' selected' : ''; ?>>Newest first</option>
+            <option value="oldest"<?php echo $sort === 'oldest' ? ' selected' : ''; ?>>Oldest first</option>
+            <option value="custom"<?php echo $sort === 'custom' ? ' selected' : ''; ?>>Arranged by hand</option>
+        </select>
+    </div>
+    <div class="vs-toolbar-field">
+        <label for="per_page">Show</label>
+        <select id="per_page" name="per_page">
+            <?php foreach ($allowedPerPage as $pp): ?>
+            <option value="<?php echo (int) $pp; ?>"<?php echo ((int) $perPage === (int) $pp) ? ' selected' : ''; ?>>
+                <?php echo $perPageLabels[$pp]; ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="vs-toolbar-actions">
+        <button type="submit" id="vs-apply">Apply</button>
+        <?php if ($q !== '' || $status !== 'all' || $sort !== 'label' || (int) $perPage !== 50): ?>
+        <a href="<?php echo $this->escapeHtmlAttr($baseUrl); ?>">Clear</a>
+        <?php endif; ?>
+    </div>
+</form>
+
+<div id="vs-term-list">
+<?php if ($terms): ?>
+<table class="tablesaw" data-tablesaw-mode="stack">
+    <thead>
+        <tr>
+            <th>Term</th>
+            <th>Status</th>
+            <th>In use</th>
+            <?php if ($sort === 'custom' && $canEdit): ?>
+            <th>Move</th>
+            <?php endif; ?>
+            <?php if ($canEdit): ?>
+            <th>Actions</th>
+            <?php endif; ?>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($terms as $t): ?>
+        <?php $isEditing = $canEdit && ((int) $t['id'] === (int) $editId); ?>
+        <tr<?php echo $isEditing ? ' class="vs-row-editing"' : ''; ?>>
+            <td>
+                <?php if ($isEditing): ?>
+                <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+                    <input type="hidden" name="op" value="rename_term">
+                    <input type="hidden" name="term_id" value="<?php echo (int) $t['id']; ?>">
+                    <?php foreach ($listState as $k => $v): ?>
+                    <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+                    <?php endforeach; ?>
+                    <input type="text" name="term_label" autofocus
+                           value="<?php echo $this->escapeHtmlAttr($t['label']); ?>">
+                    <button type="submit">Save</button>
+                    <a href="<?php echo $rowUrl(); ?>">Cancel</a>
+                </form>
+                <?php else: ?>
+                <?php echo $this->escapeHtml($t['label']); ?>
+                <?php endif; ?>
+            </td>
+            <td>
+                <?php if ($t['is_active']): ?>
+                    <span class="vs-pill vs-pill-active">Active</span>
+                <?php else: ?>
+                    <span class="vs-pill vs-pill-retired">Retired</span>
+                <?php endif; ?>
+            </td>
+            <td>
+                <?php if ((int) $t['usage_count'] > 0): ?>
+                <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'usage', 'id' => $t['id']]); ?>">
+                    <?php echo (int) $t['usage_count']; ?>
+                    <?php echo ((int) $t['usage_count'] === 1) ? 'value' : 'values'; ?>
+                </a>
+                <?php else: ?>
+                <span class="vs-muted">Not used</span>
+                <?php endif; ?>
+            </td>
+            <?php if ($sort === 'custom' && $canEdit): ?>
+            <td class="vs-move">
+                <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+                    <input type="hidden" name="op" value="move_term">
+                    <input type="hidden" name="term_id" value="<?php echo (int) $t['id']; ?>">
+                    <input type="hidden" name="direction" value="up">
+                    <?php foreach ($listState as $k => $v): ?>
+                    <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+                    <?php endforeach; ?>
+                    <button type="submit" title="Move up" aria-label="Move up">↑</button>
+                </form>
+                <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+                    <input type="hidden" name="op" value="move_term">
+                    <input type="hidden" name="term_id" value="<?php echo (int) $t['id']; ?>">
+                    <input type="hidden" name="direction" value="down">
+                    <?php foreach ($listState as $k => $v): ?>
+                    <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+                    <?php endforeach; ?>
+                    <button type="submit" title="Move down" aria-label="Move down">↓</button>
+                </form>
+            </td>
+            <?php endif; ?>
+            <?php if ($canEdit): ?>
+            <td>
+                <?php if (!$isEditing): ?>
+                <a class="button" href="<?php echo $rowUrl(['edit' => $t['id']]); ?>"
+                   data-vs-rename
+                   data-term-id="<?php echo (int) $t['id']; ?>"
+                   data-term-label="<?php echo $this->escapeHtmlAttr($t['label']); ?>">Rename</a>
+                <?php endif; ?>
+                <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+                    <input type="hidden" name="op" value="toggle_active">
+                    <input type="hidden" name="term_id" value="<?php echo (int) $t['id']; ?>">
+                    <?php foreach ($listState as $k => $v): ?>
+                    <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+                    <?php endforeach; ?>
+                    <button type="submit">
+                        <?php echo $t['is_active'] ? 'Retire' : 'Reactivate'; ?>
+                    </button>
+                </form>
+                <?php if (!$t['is_active'] && (int) $t['usage_count'] === 0): ?>
+                <a class="button vs-button-danger"
+                   href="<?php echo $this->escapeHtmlAttr(
+                       $this->url('admin/vocab-sync', ['action' => 'delete-term', 'id' => $t['id']])
+                       . ($listState ? '?' . http_build_query($listState) : '')
+                   ); ?>">Delete</a>
+                <?php endif; ?>
+            </td>
+            <?php endif; ?>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+
+<?php if ($totalPages > 1): ?>
+<div class="vs-pagination">
+    <?php if ($page > 1): ?>
+    <a class="button" href="<?php echo $rowUrl(['page' => $page - 1]); ?>">Previous</a>
+    <?php endif; ?>
+    <span class="vs-muted">Page <?php echo (int) $page; ?> of <?php echo (int) $totalPages; ?></span>
+    <?php if ($page < $totalPages): ?>
+    <a class="button" href="<?php echo $rowUrl(['page' => $page + 1]); ?>">Next</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<?php elseif ($q !== '' || $status !== 'all'): ?>
+<div class="vs-empty">
+    No terms match this search. Clear the filters to see all
+    <?php echo (int) $totalAll; ?>.
+</div>
+<?php else: ?>
+<div class="vs-empty">
+    No terms yet.<?php if ($canEdit): ?> Add the first one above — it will appear in the dropdown for
+    any property using this vocabulary.<?php endif; ?>
+</div>
+<?php endif; ?>
+</div>
+
+<?php if ($canEdit): ?>
+<dialog id="vs-rename-dialog" class="vs-dialog">
+    <form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+        <h3 class="vs-dialog-title">Rename term</h3>
+        <p class="vs-dialog-sub">
+            Currently <strong id="vs-rename-current"></strong>. Every resource
+            using this term will show the new wording immediately.
+        </p>
+        <input type="hidden" name="op" value="rename_term">
+        <input type="hidden" name="term_id" id="vs-rename-term-id" value="">
+        <?php foreach ($listState as $k => $v): ?>
+        <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+        <?php endforeach; ?>
+        <div class="field">
+            <label for="vs-rename-input">New wording</label>
+            <div class="inputs">
+                <input type="text" id="vs-rename-input" name="term_label" required>
+            </div>
+        </div>
+        <div class="vs-dialog-actions">
+            <button type="submit">Save</button>
+            <button type="button" id="vs-rename-cancel">Cancel</button>
+        </div>
+    </form>
+</dialog>
+<?php endif; ?>
+
+<?php if ($termHistory): ?>
+<div class="vs-section">
+    <h3>Recent term changes</h3>
+    <span class="vs-count">
+        last <?php echo count($termHistory); ?> —
+        <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'activity']); ?>?vocab=<?php echo (int) $vocab['id']; ?>">see full activity</a>
+    </span>
+</div>
+
+<?php $escH = function ($v) { return $this->escapeHtml((string) $v); }; ?>
+<div class="vs-daylist">
+<?php foreach ($termHistory as $h): ?>
+<?php $stampH = strtotime($h['created']); ?>
+<div class="vs-ev<?php echo $h['reverted'] ? ' vs-ev-undone' : ''; ?>">
+    <div class="vs-ev-head">
+        <span class="vs-ev-time"><?php echo $escH(date('Y-m-d H:i', $stampH)); ?></span>
+        <span class="vs-ev-what">
+            <?php
+            $verbs = [
+                'rename' => 'Renamed',
+                'add' => 'Added',
+                'delete' => 'Deleted',
+                'retire' => 'Retired',
+                'reactivate' => 'Reactivated',
+            ];
+            echo $escH($verbs[$h['action']] ?? $h['action']);
+            ?>
+        </span>
+        <?php if ($h['reverted']): ?>
+        <span class="vs-ev-id">Cancelled</span>
+        <?php elseif ($canEdit): ?>
+        <form method="post" class="vs-inline-form vs-ev-cancel"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+            <input type="hidden" name="op" value="undo_term_log">
+            <input type="hidden" name="log_id" value="<?php echo (int) $h['id']; ?>">
+            <?php foreach ($listState as $k => $v): ?>
+            <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+            <?php endforeach; ?>
+            <button type="submit">Cancel this change</button>
+        </form>
+        <?php endif; ?>
+    </div>
+
+    <?php if ($h['action'] === 'rename'): ?>
+        <?php echo \VocabSync\Diff::pair($h['before_label'], $h['after_label'], $escH); ?>
+    <?php elseif ($h['action'] === 'add'): ?>
+        <div class="vs-single vs-single-add"><?php echo $escH($h['after_label']); ?></div>
+    <?php elseif ($h['action'] === 'delete'): ?>
+        <div class="vs-single vs-single-remove"><?php echo $escH($h['before_label']); ?></div>
+    <?php else: ?>
+        <p class="vs-ev-summary"><?php echo $escH($h['current_label']); ?></p>
+    <?php endif; ?>
+</div>
+<?php endforeach; ?>
+</div>
+
+<div class="vs-note">
+    Cancelling an <strong>Add</strong> retires the term rather than deleting it,
+    because resources may already point at it. Deleting would leave those values
+    with nothing to display.
+</div>
+<?php endif; ?>
+
+<div class="vs-note">
+    <span class="vs-callout-title">Deleting a term</span>
+    <strong>Delete</strong> appears only on a term that is retired <em>and</em> used by
+    nothing, so removing it cannot leave any value without wording. It opens a
+    confirmation page rather than deleting straight away, and the checks run again
+    there, in case someone started using the term while this page sat open.
+    Cancelling a deletion brings the term back retired, but with a new ID — the
+    original number is gone for good.
+</div>
+
+<div class="vs-note">
+    <span class="vs-callout-title">Retiring is not deleting</span>
+    A retired term stops appearing in the dropdown when someone edits a resource,
+    so nobody picks it again. Resources that already use it keep displaying it
+    correctly. Reactivate at any time to bring it back.
+</div>
+
+<?php if (empty($vocab['owner_name'])): ?>
+<div class="vs-note">
+    <span class="vs-callout-title">No record of who added this</span>
+    <p>
+        It was made before the module started keeping that. Nothing can recover it
+        now, so it is left blank rather than filled with a guess. If you know it was
+        you, you can say so — the activity log will record that it was stated
+        afterwards, not observed at the time.
+    </p>
+    <?php if ($canEdit): ?>
+    <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+        <input type="hidden" name="op" value="set_owner">
+        <?php foreach ($listState as $k => $v): ?>
+        <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
+        <?php endforeach; ?>
+        <button type="submit">It was me</button>
+    </form>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<div class="vs-maintenance">
+    <h3>Maintenance for this vocabulary</h3>
+    <dl class="vs-links">
+        <?php if ($customVocabAvailable): ?>
+        <dt>
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'recheck', 'id' => $vocab['id']]); ?>">
+                Recheck unmatched values
+            </a>
+        </dt>
+        <dd>Find values an import left behind and match or assign them.</dd>
+
+        <dt>
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'revert', 'id' => $vocab['id']]); ?>">
+                Revert to Custom Vocab
+            </a>
+        </dt>
+        <dd>Send every value back to the Custom Vocab it came from.</dd>
+        <?php endif; ?>
+
+        <dt>
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'export', 'id' => $vocab['id']]); ?>">
+                View and export terms
+            </a>
+        </dt>
+        <dd>Copy the list as plain text, or download it as CSV with IDs and usage counts.</dd>
+
+        <dt class="vs-link-danger">
+            <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'delete-vocab', 'id' => $vocab['id']]); ?>">
+                Delete this vocabulary
+            </a>
+        </dt>
+        <dd>Allowed only while no values use it. Useful for clearing out a failed import.</dd>
+    </dl>
+</div>

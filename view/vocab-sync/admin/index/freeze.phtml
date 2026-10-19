@@ -1,0 +1,55 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => 'Freeze for removal']],
+]); ?>
+
+<?php echo $this->pageTitle('Freeze for removal'); ?>
+
+<p class="vs-intro">
+    Run this once, immediately before uninstalling Vocab Sync. It writes each
+    term's current label into the value itself and turns every value back into
+    plain text, so the vocabulary is no longer needed to read them.
+</p>
+
+<div class="vs-danger">
+    <span class="vs-callout-title">Why this step exists</span>
+    Uninstalling drops the table that maps term IDs to words. Values store IDs, so
+    without freezing first they would survive as bare numbers with nothing left to
+    translate them. Uninstall refuses to run while unfrozen values remain, so this
+    page is the way through.
+</div>
+
+<p class="vs-intro">
+    <strong><?php echo (int) $previewCount; ?></strong>
+    <?php echo ((int) $previewCount === 1) ? 'value' : 'values'; ?>
+    will be converted to plain text.
+</p>
+
+<?php if ((int) $previewCount > 0): ?>
+<div class="vs-danger">
+    <span class="vs-callout-title">This cannot be reversed</span>
+    Unlike import, freezing keeps no record of what changed, so there is no entry to cancel. Afterwards, renaming
+    a term no longer updates anything — each value is independent text again, the
+    behaviour you had before this module.
+</div>
+
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <div class="field">
+        <label for="confirm_text">Type FREEZE to confirm</label>
+        <div class="inputs">
+            <input type="text" id="confirm_text" name="confirm_text" required
+                   placeholder="FREEZE">
+        </div>
+    </div>
+    <button type="submit">Freeze <?php echo (int) $previewCount; ?> values</button>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'index']); ?>">Cancel</a>
+</form>
+<?php else: ?>
+<div class="vs-empty">
+    Nothing to freeze. No values are using a Vocab Sync data type, so the module
+    can be uninstalled safely.
+</div>
+<?php endif; ?>

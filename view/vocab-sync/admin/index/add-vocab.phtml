@@ -1,0 +1,31 @@
+<?php
+$this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
+$this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+?>
+<?php echo $this->partial('common/vocab-sync-crumbs', [
+    'crumbs' => [['label' => 'New vocabulary']],
+]); ?>
+
+<?php echo $this->pageTitle('New vocabulary'); ?>
+
+<p class="vs-intro">
+    A vocabulary is a named list of terms that a property can choose from.
+    Name it after what it describes, the way you would label the field itself:
+    Keywords, Current location, Medium.
+</p>
+
+<p class="vs-intro">
+    After creating it you add terms, then set a resource template property to
+    use its data type.
+</p>
+
+<form method="post"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
+    <div class="field">
+        <label for="label">Name</label>
+        <div class="inputs">
+            <input type="text" id="label" name="label" required autofocus>
+        </div>
+    </div>
+    <button type="submit">Create vocabulary</button>
+    <a href="<?php echo $this->url('admin/vocab-sync', ['action' => 'index']); ?>">Cancel</a>
+</form>
