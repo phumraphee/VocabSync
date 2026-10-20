@@ -86,8 +86,12 @@ undone and asks you to type `FREEZE` first.
 - Values written through the API may send the word or the id in `@value`; the module stores the id.
 - Export modules that read the database directly (instead of through Omeka's representations)
   would export ids, not words. Test a small export first.
-- Adding, renaming, retiring, deleting and ordering terms needs Editor, Supervisor or Global
-  Administrator; other roles can still choose terms on the edit form.
+- Every change the module makes (adding, renaming, retiring, deleting and ordering terms,
+  adding or deleting a vocabulary, importing, rechecking) needs Editor, Supervisor or Global
+  Administrator; other roles can open every page and choose terms on the edit form.
+- Freeze, Revert, undoing an import and switching templates rewrite values across the whole
+  archive, so they need Global Administrator. The two role lists are
+  `VocabSyncDataType::TERM_EDITOR_ROLES` and `VocabSyncDataType::WHOLE_ARCHIVE_ROLES`.
 
 ## Licence
 

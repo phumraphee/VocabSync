@@ -7,6 +7,61 @@ use VocabSync\DataType\VocabSyncDataType;
 
 class IndexController extends AbstractActionController
 {
+    /**
+     * Pages whose POST rewrites values across the whole archive (1.38.0), keyed the way
+     * actionKey() writes an action name. Who may: VocabSyncDataType::WHOLE_ARCHIVE_ROLES.
+     */
+    const WHOLE_ARCHIVE_ACTIONS = ['freeze', 'revert', 'revertimport', 'templates'];
+
+    /**
+     * Who may POST, decided once before any action runs (1.38.0).
+     *
+     * The module's ACL lets every signed-in role in, because every role must see the terms and
+     * choose them on the edit form. Until 1.38.0 only some actions then asked for a role, so a
+     * Researcher could import, delete a vocabulary or freeze every value in the archive. Now
+     * every POST needs an editor role, and the whole-archive ones need WHOLE_ARCHIVE_ROLES; an
+     * action added later is covered without anybody remembering to add a check to it. The
+     * checks inside each action stay as they were.
+     */
+    public function onDispatch(\Laminas\Mvc\MvcEvent $e)
+    {
+        if ($this->getRequest()->isPost()) {
+            $action = self::actionKey((string) $e->getRouteMatch()->getParam('action', 'index'));
+            $user = $this->currentIdentity();
+            $allowed = in_array($action, self::WHOLE_ARCHIVE_ACTIONS, true)
+                ? VocabSyncDataType::canChangeWholeArchive($user)
+                : VocabSyncDataType::canEditTerms($user);
+            if (!$allowed) {
+                $response = $this->postDenied($action);
+                $e->setResult($response);
+                return $response;
+            }
+        }
+        return parent::onDispatch($e);
+    }
+
+    /** An action name as Laminas finds its method: "revert-import", "revert_import", "revertImport" are one. */
+    public static function actionKey($action)
+    {
+        return strtolower(str_replace(['.', '-', '_'], '', (string) $action));
+    }
+
+    private function postDenied($action)
+    {
+        $whole = in_array($action, self::WHOLE_ARCHIVE_ACTIONS, true);
+        $message = $whole ? self::WHOLE_ARCHIVE_DENIED : self::TERM_EDIT_DENIED;
+        if ($action === 'termapi') {
+            return $this->jsonResponse(['status' => 'error', 'message' => $message], 403);
+        }
+        $this->messenger()->addError($message);
+        $response = $this->redirect()->refresh();
+        return $response;
+    }
+
+    const WHOLE_ARCHIVE_DENIED = 'Freeze, Revert, undoing an import and switching templates change '
+        . 'values across the whole archive, so they need a Global Administrator account. '
+        . 'Nothing was changed.';
+
     protected function conn()
     {
         return $this->getEvent()->getApplication()->getServiceManager()->get('Omeka\Connection');

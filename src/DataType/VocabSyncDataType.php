@@ -41,16 +41,37 @@ class VocabSyncDataType extends Literal
      *
      * 1.36.2: the same set as the Manage terms page, the delete-term confirmation and the
      * Add and assign button on the Recheck page (IndexController::canEditTerms()).
-     * Other pages of the module (Import, Revert, Freeze, delete vocab, templates) stay open to every role.
+     *
+     * 1.38.0: every POST of the module needs one of these roles (IndexController::onDispatch()),
+     * not only the pages listed above. Every role may still open every page and read it.
      */
     const TERM_EDITOR_ROLES = ['global_admin', 'site_admin', 'editor'];
+
+    /**
+     * 1.38.0: the changes that rewrite values across the whole archive at once and cannot be
+     * checked one by one afterwards: Freeze, Revert from the activity log, undoing an import,
+     * and switching templates. Change who may do them here and nowhere else.
+     */
+    const WHOLE_ARCHIVE_ROLES = ['global_admin'];
 
     /** @param object|null $user Omeka\Entity\User */
     public static function canEditTerms($user)
     {
+        return self::hasRole($user, self::TERM_EDITOR_ROLES);
+    }
+
+    /** @param object|null $user Omeka\Entity\User */
+    public static function canChangeWholeArchive($user)
+    {
+        return self::hasRole($user, self::WHOLE_ARCHIVE_ROLES);
+    }
+
+    /** @param object|null $user Omeka\Entity\User */
+    private static function hasRole($user, array $roles)
+    {
         return $user
             && method_exists($user, 'getRole')
-            && in_array($user->getRole(), self::TERM_EDITOR_ROLES, true);
+            && in_array($user->getRole(), $roles, true);
     }
 
     /**
