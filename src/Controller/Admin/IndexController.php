@@ -1537,7 +1537,7 @@ class IndexController extends AbstractActionController
 
         if ((string) $this->params()->fromQuery('format', '') === 'csv') {
             $handle = fopen('php://temp', 'r+');
-            fputcsv($handle, ['id', 'term', 'status', 'values_in_use', 'position']);
+            fputcsv($handle, ['id', 'term', 'status', 'values_in_use', 'position'], ',', '"', '\\');
             foreach ($terms as $t) {
                 fputcsv($handle, [
                     (int) $t['id'],
@@ -1545,7 +1545,7 @@ class IndexController extends AbstractActionController
                     $t['is_active'] ? 'active' : 'retired',
                     (int) $t['usage_count'],
                     (int) $t['position'],
-                ]);
+                ], ',', '"', '\\');
             }
             rewind($handle);
             $csv = stream_get_contents($handle);

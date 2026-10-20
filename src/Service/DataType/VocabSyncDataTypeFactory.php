@@ -12,7 +12,7 @@ class VocabSyncDataTypeFactory implements AbstractFactoryInterface
         return (bool) preg_match('/^vocabsync:\d+$/', (string) $requestedName);
     }
 
-    public function __invoke(ContainerInterface $container, $requestedName, array $options = null)
+    public function __invoke(ContainerInterface $container, $requestedName, ?array $options = null)
     {
         $vocabId = (int) substr($requestedName, strlen('vocabsync:'));
         return new VocabSyncDataType($container->get('Omeka\Connection'), $vocabId);
