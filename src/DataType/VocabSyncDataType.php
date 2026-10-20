@@ -324,6 +324,13 @@ class VocabSyncDataType extends Literal
      * (for older scripts or imports that send the id), and always returns the id.
      *
      * Order:
+     *  0. The id from the hidden field (vocabsync:term_id) FIRST, when it says the same thing
+     *     as @value: the term is in this vocab and @value is its word now, or @value is that
+     *     very id. (1.38.2) Without this, two terms with the same word (an import, or one
+     *     retired and re-added) were read as the lower id every time the form was saved, and
+     *     a value sent as an id was read as the term whose WORD is that number. The form
+     *     sends both, and the API hands both back, so a value that went out and comes back
+     *     unchanged now stays the term it was
      *  1. Always try it as a word first, because a term whose name is a number ("1961")
      *     really exists; checking the number first would pick the term with id 1961 instead
      *  2. The id from the hidden field (vocabsync:term_id) — used only when the word sent
@@ -340,12 +347,26 @@ class VocabSyncDataType extends Literal
             return null;
         }
 
+        $hint = is_scalar($hintId) ? trim((string) $hintId) : '';
+        if ($hint !== '' && ctype_digit($hint)) {
+            // the id, in this vocab, and @value says the same: that very id, or its word now
+            $sql = 'SELECT id FROM vocab_sync_term WHERE id = :id AND vocab_id = :vid';
+            $args = ['id' => $hint, 'vid' => $this->vocabId];
+            if ($raw !== $hint) {
+                $sql .= ' AND ' . self::sameLabelSql('label', ':l1', ':l1b');
+                $args += ['l1' => $raw, 'l1b' => $raw];
+            }
+            $agreed = $this->connection->fetchOne($sql . ' LIMIT 1', $args);
+            if ($agreed !== false && $agreed !== null) {
+                return (int) $agreed;
+            }
+        }
+
         $byLabel = self::findTermByLabel($this->connection, $this->vocabId, $raw);
         if ($byLabel) {
             return (int) $byLabel['id'];
         }
 
-        $hint = is_scalar($hintId) ? trim((string) $hintId) : '';
         if ($hint !== '' && ctype_digit($hint)) {
             try {
                 $wasItsName = $this->connection->fetchOne(

@@ -84,6 +84,10 @@ undone and asks you to type `FREEZE` first.
 ## Things to know
 
 - Values written through the API may send the word or the id in `@value`; the module stores the id.
+  `@value` is read as a word first (a term may be called "1961"). To name a term for certain,
+  send its id in `vocabsync:term_id` as well, the way the edit form does and the API hands it
+  back: when `vocabsync:term_id` is a term of the list and `@value` is that term's word, or that
+  same id, the id is taken (1.38.2). Two terms with the same word are then kept apart too.
 - Export modules that read the database directly (instead of through Omeka's representations)
   would export ids, not words. Test a small export first.
 - Every change the module makes (adding, renaming, retiring, deleting and ordering terms,
