@@ -226,6 +226,7 @@ $canEdit = !empty($canEdit);
                 <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
                     <input type="hidden" name="op" value="rename_term">
                     <input type="hidden" name="term_id" value="<?php echo (int) $t['id']; ?>">
+                    <input type="hidden" name="term_label_was" value="<?php echo $this->escapeHtmlAttr($t['label']); ?>">
                     <?php foreach ($listState as $k => $v): ?>
                     <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
                     <?php endforeach; ?>
@@ -344,6 +345,7 @@ $canEdit = !empty($canEdit);
         </p>
         <input type="hidden" name="op" value="rename_term">
         <input type="hidden" name="term_id" id="vs-rename-term-id" value="">
+        <input type="hidden" name="term_label_was" id="vs-rename-was" value="">
         <?php foreach ($listState as $k => $v): ?>
         <input type="hidden" name="<?php echo $this->escapeHtmlAttr($k); ?>" value="<?php echo $this->escapeHtmlAttr($v); ?>">
         <?php endforeach; ?>

@@ -884,6 +884,34 @@ class IndexController extends AbstractActionController
      * reaches every resource automatically, because storage points at the id),
      * retire/reactivate terms (never really deleted while something refers to them).
      */
+    /**
+     * NOT OVER A RENAME SOMEBODY ELSE MADE (1.38.3, 2026-10-21). The rename form says which
+     * wording it was opened on (term_label_was). If the term is no longer called that,
+     * somebody renamed it in between and this rename would silently undo theirs, so it is
+     * refused and the page says what the term is called now. A form without the field (an
+     * older page) is answered as before.
+     */
+    private function renamedMeanwhile($conn, int $termId, int $vocabId): bool
+    {
+        $was = $this->params()->fromPost('term_label_was');
+        if ($was === null) {
+            return false;
+        }
+        $now = $conn->fetchOne(
+            'SELECT label FROM vocab_sync_term WHERE id = :id AND vocab_id = :vid',
+            ['id' => $termId, 'vid' => $vocabId]
+        );
+        if ($now === false || (string) $now === (string) $was) {
+            return false;
+        }
+        $this->messenger()->addError(sprintf(
+            'Somebody renamed this term to "%s" after you opened the page. Nothing was changed: '
+            . 'check the new wording, then rename it again if you still want to.', // @translate
+            $now
+        ));
+        return true;
+    }
+
     public function editVocabAction()
     {
         $conn = $this->conn();
@@ -940,6 +968,8 @@ class IndexController extends AbstractActionController
                         . 'instead: retire one and reassign its values.',
                         $newLabel
                     ));
+                } elseif ($newLabel !== '' && $this->renamedMeanwhile($conn, $termId, (int) $vocabId)) {
+                    // refused: renamedMeanwhile() has said why (1.38.3)
                 } elseif ($newLabel !== '') {
                     $beforeLabel = $conn->fetchOne(
                         'SELECT label FROM vocab_sync_term WHERE id = :id AND vocab_id = :vid',

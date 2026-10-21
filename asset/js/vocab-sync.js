@@ -160,6 +160,9 @@
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 dialogTermId.value = btn.getAttribute('data-term-id');
+                /* the wording the rename starts from, so a rename made in between is refused (1.38.3) */
+                var was = document.getElementById('vs-rename-was');
+                if (was) { was.value = btn.getAttribute('data-term-label'); }
                 dialogInput.value = btn.getAttribute('data-term-label');
                 dialogCurrent.textContent = btn.getAttribute('data-term-label');
                 dialog.showModal();

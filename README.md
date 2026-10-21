@@ -88,6 +88,9 @@ undone and asks you to type `FREEZE` first.
   send its id in `vocabsync:term_id` as well, the way the edit form does and the API hands it
   back: when `vocabsync:term_id` is a term of the list and `@value` is that term's word, or that
   same id, the id is taken (1.38.2). Two terms with the same word are then kept apart too.
+- Renaming a term says which wording it was opened on. If somebody else renamed the same term
+  in the meantime, the rename is refused and the page says what the term is called now, so one
+  rename never silently undoes another (1.38.3).
 - Export modules that read the database directly (instead of through Omeka's representations)
   would export ids, not words. Test a small export first.
 - Every change the module makes (adding, renaming, retiring, deleting and ordering terms,
