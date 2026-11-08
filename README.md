@@ -91,6 +91,14 @@ undone and asks you to type `FREEZE` first.
 - Renaming a term says which wording it was opened on. If somebody else renamed the same term
   in the meantime, the rename is refused and the page says what the term is called now, so one
   rename never silently undoes another (1.38.3).
+- The module writes values with its own SQL (one statement for a whole vocabulary). When the
+  Revision History module is installed, each record those writes change is handed to it, so the
+  record's history says what changed and who pressed the button (1.39.0). With Revision
+  History 1.2.1 or later this works for a rewrite of any size: the write stays one statement and
+  the history is written from a copy of the values as they were. Renaming a term notes the new
+  wording on every record that uses it. With Revision History 1.2.2 or later each such write is
+  one entry for all the records it changed (each record's page shows it, with only its own
+  values), which keeps a rewrite of a whole vocabulary to a few seconds.
 - Export modules that read the database directly (instead of through Omeka's representations)
   would export ids, not words. Test a small export first.
 - Every change the module makes (adding, renaming, retiring, deleting and ordering terms,

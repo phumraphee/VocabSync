@@ -67,6 +67,11 @@ class IndexController extends AbstractActionController
         return $this->getEvent()->getApplication()->getServiceManager()->get('Omeka\Connection');
     }
 
+    protected function services()
+    {
+        return $this->getEvent()->getApplication()->getServiceManager();
+    }
+
     /**
      * The user doing the work.
      *
@@ -985,6 +990,8 @@ class IndexController extends AbstractActionController
                         ($beforeLabel === false) ? null : $beforeLabel,
                         $newLabel, null, null
                     );
+                    \VocabSync\History::wording($this->services(), (int) $vocabId, $termId,
+                        ($beforeLabel === false) ? null : $beforeLabel, $newLabel, 'vocab_sync_term_log:' . $termLogId);
                     $this->logEvent([
                         'action' => 'term.rename',
                         'vocabId' => $vocabId,
@@ -1197,6 +1204,8 @@ class IndexController extends AbstractActionController
                             'UPDATE vocab_sync_term_log SET reverted = 1 WHERE id = :id',
                             ['id' => $logId]
                         );
+                        \VocabSync\History::wording($this->services(), (int) $vocabId, (int) $entry['term_id'],
+                            $entry['after_label'], (string) $entry['before_label'], 'vocab_sync_term_log:' . $logId . ':undo');
                         $this->logEvent([
                             'action' => 'undo',
                             'vocabId' => $vocabId,
@@ -1933,13 +1942,19 @@ class IndexController extends AbstractActionController
                     ['logId' => $importLogId, 'vid' => $newVocabId, 'oldType' => $oldType]
                 );
 
-                $matched = (int) $conn->executeStatement(
+                $matched = \VocabSync\History::rewrite($this->services(),
+                    'SELECT DISTINCT v.resource_id FROM value v
+                     JOIN vocab_sync_term t ON t.vocab_id = :vid
+                      AND ' . VocabSyncDataType::sameLabelSql('t.label', 'v.value') . '
+                     WHERE v.type = :oldType',
+                    ['vid' => $newVocabId, 'oldType' => $oldType],
                     'UPDATE value v
                      JOIN vocab_sync_term t ON t.vocab_id = :vid
                       AND ' . VocabSyncDataType::sameLabelSql('t.label', 'v.value') . '
                      SET v.type = :newType, v.value = t.id
                      WHERE v.type = :oldType',
-                    ['vid' => $newVocabId, 'newType' => $newType, 'oldType' => $oldType]
+                    ['vid' => $newVocabId, 'newType' => $newType, 'oldType' => $oldType],
+                    'Vocab Sync: values tied to the terms of an imported vocabulary', 'vocabsync:import:' . $importLogId
                 );
             } catch (\Throwable $e) {
                 $importFailed = $e->getMessage();
@@ -2165,12 +2180,17 @@ class IndexController extends AbstractActionController
                 ['logId' => $batchId, 'vid' => $vocabId, 'newType' => $newType]
             );
 
-            $affected = (int) $conn->executeStatement(
+            $affected = \VocabSync\History::rewrite($this->services(),
+                'SELECT DISTINCT v.resource_id FROM value v
+                 JOIN vocab_sync_term t ON t.id = v.value AND t.vocab_id = :vid
+                 WHERE v.type = :newType',
+                ['vid' => $vocabId, 'newType' => $newType],
                 'UPDATE value v
                  JOIN vocab_sync_term t ON t.id = v.value AND t.vocab_id = :vid
                  SET v.type = :oldType, v.value = t.label
                  WHERE v.type = :newType',
-                ['vid' => $vocabId, 'oldType' => $oldType, 'newType' => $newType]
+                ['vid' => $vocabId, 'oldType' => $oldType, 'newType' => $newType],
+                'Vocab Sync: values turned back into plain text (Revert)', 'vocabsync:revert:' . $batchId
             );
 
             $this->logEvent([
@@ -2295,14 +2315,21 @@ class IndexController extends AbstractActionController
                     ['logId' => $batchId, 'vid' => $vocabId, 'oldType' => $oldType]
                 );
 
-                $matched = (int) $conn->executeStatement(
+                $matched = \VocabSync\History::rewrite($this->services(),
+                    'SELECT DISTINCT v.resource_id FROM value v
+                     JOIN vocab_sync_term t
+                       ON t.vocab_id = :vid AND t.is_active = 1
+                      AND ' . VocabSyncDataType::sameLabelSql('t.label', 'v.value') . '
+                     WHERE v.type = :oldType',
+                    ['vid' => $vocabId, 'oldType' => $oldType],
                     'UPDATE value v
                      JOIN vocab_sync_term t
                        ON t.vocab_id = :vid AND t.is_active = 1
                       AND ' . VocabSyncDataType::sameLabelSql('t.label', 'v.value') . '
                      SET v.type = :newType, v.value = t.id
                      WHERE v.type = :oldType',
-                    ['vid' => $vocabId, 'newType' => $newType, 'oldType' => $oldType]
+                    ['vid' => $vocabId, 'newType' => $newType, 'oldType' => $oldType],
+                    'Vocab Sync: values tied to terms (Recheck all)', 'vocabsync:recheck:' . $batchId
                 );
 
                 $this->logEvent([
@@ -2341,10 +2368,14 @@ class IndexController extends AbstractActionController
                          VALUES (:l, :v, :ot, :ov)',
                         ['l' => $batchId, 'v' => $row['id'], 'ot' => $oldType, 'ov' => $row['value']]
                     );
-                    $conn->executeStatement(
-                        'UPDATE value SET type = :nt, value = :tid WHERE id = :id',
-                        ['nt' => $newType, 'tid' => $termId, 'id' => $row['id']]
-                    );
+                    \VocabSync\History::around($this->services(),
+                        [(int) $conn->fetchOne('SELECT resource_id FROM value WHERE id = ?', [$row['id']])],
+                        function () use ($conn, $newType, $termId, $row) {
+                            $conn->executeStatement(
+                                'UPDATE value SET type = :nt, value = :tid WHERE id = :id',
+                                ['nt' => $newType, 'tid' => $termId, 'id' => $row['id']]
+                            );
+                        }, 'Vocab Sync: one value tied to a term');
                     $this->logEvent([
                         'action' => 'value.assign',
                         'vocabId' => $vocabId,
@@ -2419,10 +2450,14 @@ class IndexController extends AbstractActionController
                          VALUES (:l, :v, :ot, :ov)',
                         ['l' => $batchId, 'v' => $row['id'], 'ot' => $oldType, 'ov' => $row['value']]
                     );
-                    $conn->executeStatement(
-                        'UPDATE value SET type = :nt, value = :tid WHERE id = :id',
-                        ['nt' => $newType, 'tid' => $newTermId, 'id' => $row['id']]
-                    );
+                    \VocabSync\History::around($this->services(),
+                        [(int) $conn->fetchOne('SELECT resource_id FROM value WHERE id = ?', [$row['id']])],
+                        function () use ($conn, $newType, $newTermId, $row) {
+                            $conn->executeStatement(
+                                'UPDATE value SET type = :nt, value = :tid WHERE id = :id',
+                                ['nt' => $newType, 'tid' => $newTermId, 'id' => $row['id']]
+                            );
+                        }, 'Vocab Sync: a term added and one value tied to it');
 
                     $this->logEvent([
                         'action' => 'value.add_assign',
@@ -2867,12 +2902,17 @@ class IndexController extends AbstractActionController
                 ['id' => $logId]
             );
 
-            $reverted = (int) $conn->executeStatement(
+            $reverted = \VocabSync\History::rewrite($this->services(),
+                'SELECT DISTINCT v.resource_id FROM value v
+                 JOIN vocab_sync_import_value_log l ON l.value_id = v.id
+                 WHERE l.import_log_id = :id AND v.type = :guard',
+                ['id' => $logId, 'guard' => $newType],
                 'UPDATE value v
                  JOIN vocab_sync_import_value_log l ON l.value_id = v.id
                  SET v.type = l.old_type, v.value = l.old_value
                  WHERE l.import_log_id = :id AND v.type = :guard',
-                ['id' => $logId, 'guard' => $newType]
+                ['id' => $logId, 'guard' => $newType],
+                'Vocab Sync: a value batch undone', 'vocabsync:undo:' . $logId
             );
             $skipped = $totalLogged - $reverted;
 
@@ -2947,13 +2987,21 @@ class IndexController extends AbstractActionController
 
             // // One JOIN, one statement: match the type suffix (vocab id) with
             // // value (term id) and write the current label over value.value
-            $affected = $conn->executeStatement(
+            $affected = \VocabSync\History::rewrite($this->services(),
+                "SELECT DISTINCT v.resource_id FROM value v
+                 JOIN vocab_sync_term t
+                    ON v.type = CONCAT('vocabsync:', t.vocab_id)
+                   AND v.value = t.id
+                 WHERE v.type REGEXP '^vocabsync:[0-9]+$'",
+                [],
                 "UPDATE value v
                  JOIN vocab_sync_term t
                     ON v.type = CONCAT('vocabsync:', t.vocab_id)
                    AND v.value = t.id
                  SET v.value = t.label, v.type = 'literal'
-                 WHERE v.type REGEXP '^vocabsync:[0-9]+$'"
+                 WHERE v.type REGEXP '^vocabsync:[0-9]+$'",
+                [],
+                'Vocab Sync: every value frozen into plain text', 'vocabsync:freeze:' . gmdate('YmdHis')
             );
 
             $this->logEvent([
