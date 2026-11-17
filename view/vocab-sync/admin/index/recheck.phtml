@@ -152,7 +152,7 @@ $resourceLink = function ($id) use ($resourceTypes) {
                 <?php endif; ?>
             </td>
             <td>
-                <?php if (!empty($canEdit)): ?>
+                <?php if (!empty($canEdit) || !empty($canWrite)): ?>
                 <form method="post" class="vs-inline-form"><?php echo $this->formElement(new \Laminas\Form\Element\Csrf('vocabsync_csrf', ['csrf_options' => ['timeout' => 3600]])); ?>
                     <input type="hidden" name="op" value="add_and_assign">
                     <input type="hidden" name="old_vocab_id" value="<?php echo (int) $oldId; ?>">

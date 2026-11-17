@@ -28,9 +28,10 @@ class IndexController extends AbstractActionController
         if ($this->getRequest()->isPost()) {
             $action = self::actionKey((string) $e->getRouteMatch()->getParam('action', 'index'));
             $user = $this->currentIdentity();
+            // 1.40.0: a term writer (Reviewer) may send only the ops in TERM_WRITER_OPS
             $allowed = in_array($action, self::WHOLE_ARCHIVE_ACTIONS, true)
                 ? VocabSyncDataType::canChangeWholeArchive($user)
-                : VocabSyncDataType::canEditTerms($user);
+                : VocabSyncDataType::canPostTermOp($user, $action, (string) $this->params()->fromPost('op', ''));
             if (!$allowed) {
                 $response = $this->postDenied($action);
                 $e->setResult($response);
@@ -930,7 +931,7 @@ class IndexController extends AbstractActionController
             return $this->redirect()->toRoute('admin/vocab-sync', ['action' => 'index']);
         }
 
-        if ($this->getRequest()->isPost() && !$this->canEditTerms()) {
+        if ($this->getRequest()->isPost() && !$this->canWriteTerms()) {
             // // Every role may view this page but change nothing · the buttons are already hidden; this
             // // stops someone POSTing directly, or a page left open from before their role was lowered
             $this->messenger()->addError(self::TERM_EDIT_DENIED);
@@ -1107,6 +1108,9 @@ class IndexController extends AbstractActionController
                 );
                 if (!$entry || $entry['reverted']) {
                     $this->messenger()->addError('That change is no longer on record.');
+                } elseif (!$this->canEditTerms() && !in_array($entry['action'], VocabSyncDataType::TERM_WRITER_UNDO, true)) {
+                    // // 1.40.0: a term writer cancels a rename or an add; the rest is an editor's
+                    $this->messenger()->addError(self::TERM_EDIT_DENIED);
                 } elseif ($entry['action'] === 'add') {
                     // // Undoing an "add" = retire, not delete, because a resource may already
                     // // point at that term; a real delete would leave those values orphaned
@@ -1410,6 +1414,7 @@ class IndexController extends AbstractActionController
             'totalAll' => $totalAll,
             'editId' => $editId,
             'canEdit' => $this->canEditTerms(),
+            'canWrite' => $this->canWriteTerms(),
         ]);
     }
 
@@ -2395,7 +2400,7 @@ class IndexController extends AbstractActionController
                 } else {
                     $this->messenger()->addError('That value or term is no longer available. Reload the page and try again.');
                 }
-            } elseif ($op === 'add_and_assign' && !$this->canEditTerms()) {
+            } elseif ($op === 'add_and_assign' && !$this->canWriteTerms()) {
                 // // This button makes a new word, so it needs the same rights as the Manage terms page
                 $this->messenger()->addError(self::TERM_EDIT_DENIED);
             } elseif ($op === 'add_and_assign') {
@@ -2515,6 +2520,7 @@ class IndexController extends AbstractActionController
             'terms' => $terms,
             'resourceTypes' => $this->resourceTypes($allIds),
             'canEdit' => $this->canEditTerms(),
+            'canWrite' => $this->canWriteTerms(),
         ]);
     }
 
@@ -3033,7 +3039,7 @@ class IndexController extends AbstractActionController
      * set it without passing a CORS preflight, so this stops cross-site requests (CSRF)
      * riding on our login cookie.
      *
-     * Rights: only roles in VocabSyncDataType::TERM_EDITOR_ROLES
+     * Rights: only roles in VocabSyncDataType::TERM_WRITER_ROLES (1.40.0; ops TERM_WRITER_OPS)
      * (the button is hidden from others too, but it is always checked again here; the page is not trusted)
      */
     public function termApiAction()
@@ -3047,7 +3053,7 @@ class IndexController extends AbstractActionController
             return $this->jsonResponse(['status' => 'error', 'message' => 'Bad request.'], 400);
         }
 
-        if (!$this->canEditTerms()) {
+        if (!VocabSyncDataType::canPostTermOp($this->currentIdentity(), 'termapi', (string) $this->params()->fromPost('op'))) {
             return $this->jsonResponse([
                 'status' => 'error',
                 'message' => self::TERM_EDIT_DENIED,
@@ -3153,6 +3159,12 @@ class IndexController extends AbstractActionController
      * on the Recheck page and term-api — every way of adding, changing or deleting a word ·
      * other roles still see the term list and choose terms on the item edit page as usual.
      */
+    /** 1.40.0: add, rename, arrange (TERM_WRITER_ROLES); see canEditTerms() for the rest */
+    protected function canWriteTerms()
+    {
+        return VocabSyncDataType::canWriteTerms($this->currentIdentity());
+    }
+
     protected function canEditTerms()
     {
         return VocabSyncDataType::canEditTerms($this->currentIdentity());

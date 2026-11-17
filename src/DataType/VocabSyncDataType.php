@@ -48,6 +48,26 @@ class VocabSyncDataType extends Literal
     const TERM_EDITOR_ROLES = ['global_admin', 'site_admin', 'editor'];
 
     /**
+     * 1.40.0: who may add a term, rename one (fix its spelling), arrange the order by hand,
+     * cancel a rename or an add, and tie a value to a term on the Recheck page — but not
+     * retire, delete or merge terms, nor change a vocabulary's own settings. Omeka's
+     * Reviewer edits everybody's resources and deletes only their own; this is the same
+     * line drawn for terms. Every one of these changes is in the term history and can be
+     * cancelled. The full list of what a writer may POST: TERM_WRITER_OPS.
+     */
+    const TERM_WRITER_ROLES = ['global_admin', 'site_admin', 'editor', 'reviewer'];
+
+    /** action key (IndexController::actionKey) => the `op` values a writer may send ('*' = any). */
+    const TERM_WRITER_OPS = [
+        'editvocab' => ['add_term', 'rename_term', 'move_term', 'undo_term_log'],
+        'termapi' => ['check', 'add'],
+        'recheck' => ['add_and_assign', 'assign_manual'],
+    ];
+
+    /** The term-log entries a writer may cancel: a rename goes back, an add is retired. */
+    const TERM_WRITER_UNDO = ['rename', 'add'];
+
+    /**
      * 1.38.0: the changes that rewrite values across the whole archive at once and cannot be
      * checked one by one afterwards: Freeze, Revert from the activity log, undoing an import,
      * and switching templates. Change who may do them here and nowhere else.
@@ -58,6 +78,22 @@ class VocabSyncDataType extends Literal
     public static function canEditTerms($user)
     {
         return self::hasRole($user, self::TERM_EDITOR_ROLES);
+    }
+
+    /** @param object|null $user Omeka\Entity\User */
+    public static function canWriteTerms($user)
+    {
+        return self::hasRole($user, self::TERM_WRITER_ROLES);
+    }
+
+    /** May this user POST this action with this op (1.40.0)? Editors: everything they could. */
+    public static function canPostTermOp($user, $actionKey, $op)
+    {
+        if (self::canEditTerms($user)) {
+            return true;
+        }
+        $ops = self::TERM_WRITER_OPS[$actionKey] ?? null;
+        return $ops !== null && self::canWriteTerms($user) && in_array((string) $op, $ops, true);
     }
 
     /** @param object|null $user Omeka\Entity\User */
@@ -278,7 +314,7 @@ class VocabSyncDataType extends Literal
         }
         $canAdd = false;
         try {
-            $canAdd = self::canEditTerms($view->identity());
+            $canAdd = self::canWriteTerms($view->identity());   // 1.40.0: a term writer may add
         } catch (\Throwable $e) {
             $canAdd = false;
         }

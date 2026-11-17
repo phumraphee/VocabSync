@@ -104,9 +104,14 @@ undone and asks you to type `FREEZE` first.
 - Every change the module makes (adding, renaming, retiring, deleting and ordering terms,
   adding or deleting a vocabulary, importing, rechecking) needs Editor, Supervisor or Global
   Administrator; other roles can open every page and choose terms on the edit form.
+- Reviewer (1.40.0) may add terms (also from the edit form), rename them, arrange them by hand,
+  cancel a rename or an add, and tie a value to a term on the Recheck page — but not retire,
+  delete or merge terms, nor change a vocabulary's settings: Omeka's Reviewer edits everybody's
+  resources and deletes only their own, and the same line is drawn here. Every one of these
+  changes is in the term history and can be cancelled (`TERM_WRITER_ROLES`, `TERM_WRITER_OPS`).
 - Freeze, Revert, undoing an import and switching templates rewrite values across the whole
-  archive, so they need Global Administrator. The two role lists are
-  `VocabSyncDataType::TERM_EDITOR_ROLES` and `VocabSyncDataType::WHOLE_ARCHIVE_ROLES`.
+  archive, so they need Global Administrator. The role lists are
+  `VocabSyncDataType::TERM_EDITOR_ROLES`, `TERM_WRITER_ROLES` and `WHOLE_ARCHIVE_ROLES`.
 
 ## Licence
 
