@@ -5,6 +5,7 @@
  */
 $this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
 $this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+$this->headScript()->appendFile($this->assetUrl('js/vocab-sync.js', 'VocabSync'), 'text/javascript', ['defer' => 'defer']);
 
 $e = function ($v) { return $this->escapeHtml((string) $v); };
 
@@ -47,7 +48,7 @@ $day = null;
 <form method="get" class="vs-toolbar">
     <div class="vs-toolbar-field">
         <label for="vocab">Vocabulary</label>
-        <select id="vocab" name="vocab" onchange="this.form.submit()">
+        <select id="vocab" name="vocab" data-vs-autosubmit>
             <option value="0">All</option>
             <?php foreach ($vocabs as $v): ?>
             <option value="<?php echo (int) $v['id']; ?>"<?php echo ((int) $vocabId === (int) $v['id']) ? ' selected' : ''; ?>>

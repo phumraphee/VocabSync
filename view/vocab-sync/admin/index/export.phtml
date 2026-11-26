@@ -1,6 +1,7 @@
 <?php
 $this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
 $this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+$this->headScript()->appendFile($this->assetUrl('js/vocab-sync.js', 'VocabSync'), 'text/javascript', ['defer' => 'defer']);
 
 $base = $this->url('admin/vocab-sync', ['action' => 'export', 'id' => $vocab['id']]);
 $query = function (array $extra = []) use ($base, $order, $status) {
@@ -33,7 +34,7 @@ foreach ($terms as $t) {
 <form method="get" class="vs-toolbar">
     <div class="vs-toolbar-field">
         <label for="status">Include</label>
-        <select id="status" name="status" onchange="this.form.submit()">
+        <select id="status" name="status" data-vs-autosubmit>
             <option value="active"<?php echo $status === 'active' ? ' selected' : ''; ?>>Active only</option>
             <option value="all"<?php echo $status === 'all' ? ' selected' : ''; ?>>Active and retired</option>
             <option value="retired"<?php echo $status === 'retired' ? ' selected' : ''; ?>>Retired only</option>
@@ -41,7 +42,7 @@ foreach ($terms as $t) {
     </div>
     <div class="vs-toolbar-field">
         <label for="order">Order</label>
-        <select id="order" name="order" onchange="this.form.submit()">
+        <select id="order" name="order" data-vs-autosubmit>
             <option value="label"<?php echo $order === 'label' ? ' selected' : ''; ?>>Alphabetical</option>
             <option value="added"<?php echo $order === 'added' ? ' selected' : ''; ?>>Order added</option>
             <option value="custom"<?php echo $order === 'custom' ? ' selected' : ''; ?>>Arranged by hand</option>
@@ -71,7 +72,7 @@ foreach ($terms as $t) {
     or message.
 </p>
 
-<textarea class="vs-export-box" rows="14" readonly onclick="this.select()"><?php
+<textarea class="vs-export-box" rows="14" readonly data-vs-select-all><?php
 echo $this->escapeHtml(implode("\n", $plain));
 ?></textarea>
 

@@ -9,6 +9,30 @@
 (function () {
     'use strict';
 
+    /* ---- small helpers for every Vocab Sync page ----------------------
+     * In place of inline on...= attributes, which a Content Security Policy
+     * without 'unsafe-inline' refuses (script-src-attr). A select marked
+     * data-vs-autosubmit sends its form when it changes; a textarea marked
+     * data-vs-select-all selects all its text when clicked. With JavaScript
+     * off, the pages show an Apply button instead (noscript), as before.
+     */
+    document.addEventListener('change', function (e) {
+        var el = e.target;
+        if (el && el.matches && el.matches('select[data-vs-autosubmit]') && el.form) {
+            el.form.submit();
+        }
+    });
+    document.addEventListener('click', function (e) {
+        var el = e.target;
+        if (el && el.matches && el.matches('textarea[data-vs-select-all]')) {
+            el.select();
+        }
+    });
+})();
+
+(function () {
+    'use strict';
+
     var listWrap = document.getElementById('vs-term-list');
     var toolbar = document.getElementById('vs-toolbar');
     if (!listWrap || !toolbar) {

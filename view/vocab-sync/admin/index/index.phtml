@@ -1,6 +1,7 @@
 <?php
 $this->htmlElement('body')->appendAttribute('class', 'vocab-sync');
 $this->headLink()->appendStylesheet($this->assetUrl('css/vocab-sync.css', 'VocabSync'));
+$this->headScript()->appendFile($this->assetUrl('js/vocab-sync.js', 'VocabSync'), 'text/javascript', ['defer' => 'defer']);
 ?>
 <?php echo $this->pageTitle('Vocab Sync'); ?>
 
@@ -40,7 +41,7 @@ $sortOptions = [
 <form method="get" class="vs-toolbar">
     <div class="vs-toolbar-field">
         <label for="sort">Sort by</label>
-        <select id="sort" name="sort" onchange="this.form.submit()">
+        <select id="sort" name="sort" data-vs-autosubmit>
             <?php foreach ($sortOptions as $key => $label): ?>
             <option value="<?php echo $this->escapeHtmlAttr($key); ?>"<?php echo $sort === $key ? ' selected' : ''; ?>>
                 <?php echo $this->escapeHtml($label); ?>
